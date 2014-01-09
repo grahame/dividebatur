@@ -1,5 +1,5 @@
 import sys, itertools, json, fractions, os
-from output import HtmlOutput
+from output import HtmlOutput, RoundLog
 
 class PreferenceFlow:
     """
@@ -611,7 +611,7 @@ class SenateCounter:
         if next_to_min_votes is not None:
             self.output.log_line("Exclusion margin from next candidate (%s): %d votes (%d vs. %d)" % (','.join(self.candidate_title(t) for t in candidates_next_excluded), next_to_min_votes - min_votes, min_votes, next_to_min_votes))
 
-    def process_round(self, round_number):
+    def process_round(self, round_number, round_log):
         if round_number > 1:
             last_candidate_aggregates = self.round_candidate_aggregates[-1]
             exhausted_votes = last_candidate_aggregates.get_exhausted_votes()
@@ -641,7 +641,7 @@ class SenateCounter:
             for candidate_id in elected:
                 self.elect(candidate_aggregates, candidate_id)
                 if len(self.candidates_elected) == self.vacancies:
-                    self.output.log_line("\nAll vacancies filled.\n")
+                    round_log.post_note("All vacancies filled.")
                     return False
         elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
             # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even 
@@ -673,8 +673,9 @@ class SenateCounter:
         # this is the definitive data structure recording which votes go to which candidate
         # and how many votes that candidate has. it is mutated each round.
         for round_number in itertools.count(1):
-            self.output.log_line ("\n*** Start count: %d ***\n" % (round_number))
-            if not self.process_round(round_number):
+            round_log = RoundLog(round_number)
+            self.output.add_round(round_log)
+            if not self.process_round(round_number, round_log):
                 break
 
     def summary(self):
