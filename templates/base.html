@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap-theme.min.css">
+  </head>
+  <body>
+
+<div class="container" id="content">
+
+<h1>Senate Vote Count &mdash; {{ name | escape }} </h1>
+
+<div class="row">
+    <div class="col-lg-4 col-md-4">
+    <table class="table table-bordered">
+    <tbody>
+        <tr>
+            <th>Run</th>
+            <td>{{ description | escape }}</td>
+        </tr>
+        <tr>
+            <th>Total papers</th>
+            <td>{{ counter.total_papers | escape }}</td>
+        </tr>
+        <tr>
+            <th>Vacancies</th>
+            <td>{{ counter.vacancies | escape }}</td>
+        </tr>
+        <tr>
+            <th>Quota for election</th>
+            <td>{{ counter.quota | escape }}</td>
+        </tr>
+        <tr>
+            <th>Executed</th>
+            <td>{{ dt.strftime("%Y-%m-%d %H:%M") | escape }}</td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+
+{% for item in log %}
+
+<div class="row">
+<pre>
+{{ item.line|escape }}
+</pre>
+</div>
+
+{% endfor %}
+
+</div>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+  </body>
+</html>

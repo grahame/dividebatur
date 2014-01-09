@@ -1,4 +1,5 @@
 import sys, itertools, json, fractions, os
+from output import HtmlOutput
 
 class PreferenceFlow:
     """
@@ -216,7 +217,8 @@ class CandidateAggregates:
         return self.gain_loss_votes
 
 class SenateCounter:
-    def __init__(self, vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title, automated_responses):
+    def __init__(self, vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title, automated_responses, **template_vars):
+        self.output = HtmlOutput()
         self.automated_responses = automated_responses
         self.vacancies, self.papers_for_count, self.candidate_ids, self.candidate_order, self.candidate_title = \
             vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title
@@ -238,21 +240,22 @@ class SenateCounter:
         self.count()
         # log who got elected/excluded
         self.summary()
+        # render to HTML
+        self.output.render(self, template_vars)
 
     def input_or_automated(self, qn):
         if self.next_automated < len(self.automated_responses):
             resp = self.automated_responses[self.next_automated]
-            print("%s\nautomation: '%s' entered" % (qn, resp))
+            self.output.log_line("%s\nautomation: '%s' entered" % (qn, resp), echo=True)
             self.next_automated += 1
             return resp
         else:
-            return input(qn)
+            self.output.log_line(qn, echo=True, end='')
+            return input()
 
     def determine_quota(self):
         self.total_papers = sum(count for _, count in self.papers_for_count)
         self.quota = int(self.total_papers / (self.vacancies + 1)) + 1
-        print("total papers: %10d" % (self.total_papers))
-        print("       quota: %10d" % (self.quota))
 
     def set_candidate_order(self, fn):
         self.candidate_order = fn
@@ -281,19 +284,19 @@ class SenateCounter:
             if len(candidate_ids) == 1:
                 elected.append(candidate_ids[0])
             else:
-                print("Multiple candidates elected with %d votes." % (votes))
+                self.output.log_line("Multiple candidates elected with %d votes." % (votes), echo=True)
                 for candidate_id in candidate_ids:
-                    print("    %s" % (self.candidate_title[candidate_id]))
+                    self.output.log_line("    %s" % (self.candidate_title[candidate_id]), echo=True)
                 tie_breaker_round = self.find_tie_breaker(candidate_ids)
                 if tie_breaker_round is not None:
-                    print("Tie broken from previous totals")
+                    self.output.log_line("Tie broken from previous totals", echo=True)
                     for candidate_id in reversed(sorted(candidate_ids, key=tie_breaker_round.get_vote_count)):
                         elected.append(candidate_id)
                 else:
-                    print("No tie breaker round: input required from Australian Electoral Officer. Elect candidates in order:")
+                    self.output.log_line("No tie breaker round: input required from Australian Electoral Officer. Elect candidates in order:", echo=True)
                     permutations = itertools.permutations(candidate_ids)
                     for idx, permutation in enumerate(permutations):
-                        print("%d) %s" % (idx+1, ', '.join([self.candidate_title(t) for t in permutation])))
+                        self.output.log_line("%d) %s" % (idx+1, ', '.join([self.candidate_title(t) for t in permutation])))
                     choice = int(self.input_or_automated("choose election order: "))
                     for candidate_id in permutations[choice-1]:
                         elected.append(candidate_id)
@@ -367,38 +370,38 @@ class SenateCounter:
             bundle_transaction = BundleTransaction(bundles_moving)
             self.candidate_bundle_transactions.transfer_to(candidate_id, bundle_transaction)
             candidate_votes[candidate_id] += bundle_transaction.get_votes()
-            print("%7d votes (from %7d papers) distributed to %s" % (
+            self.output.log_line("%7d votes (from %7d papers) distributed to %s" % (
                 bundle_transaction.get_votes(), bundle_transaction.get_papers(),
                 self.candidate_title(candidate_id)))
 
         exhausted_votes = int(exhausted_papers * transfer_value)
-        print("%7d votes exhausted (from %7d papers)" % (exhausted_votes, exhausted_papers))
+        self.output.log_line("%7d votes exhausted (from %7d papers)" % (exhausted_votes, exhausted_papers))
         return candidate_votes, exhausted_votes, exhausted_papers
 
     def elect(self, candidate_aggregates, candidate_id):
         self.candidates_elected.append(candidate_id)
-        print("\n%s elected #%d" % (self.candidate_title(candidate_id), len(self.candidates_elected)))
+        self.output.log_line("\n%s elected #%d" % (self.candidate_title(candidate_id), len(self.candidates_elected)))
         if len(self.candidates_elected) != self.vacancies:
             excess_votes = candidate_aggregates.get_vote_count(candidate_id) - self.quota
             assert(excess_votes >= 0)
             transfer_value = fractions.Fraction(excess_votes, self.candidate_bundle_transactions.paper_count(candidate_id))
             assert(transfer_value >= 0)
             self.election_distributions_pending.append((candidate_id, transfer_value))
-            print("    %7d excess ballots to be distributed at a transfer value of %g" % (excess_votes, float(transfer_value)))
+            self.output.log_line("    %7d excess ballots to be distributed at a transfer value of %g" % (excess_votes, float(transfer_value)))
 
     def exclude(self, candidate_id):
         self.candidates_excluded.append(candidate_id)
-        print("\nCandidate %s excluded." % self.candidate_title(candidate_id))
+        self.output.log_line("\nCandidate %s excluded." % self.candidate_title(candidate_id))
         transfer_values = set()
         for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
             transfer_values.add(bundle_transaction.get_transfer_value())
         for transfer_value in reversed(sorted(transfer_values)):
-            print("    Queued distribution of preferences with transfer value %g" % (transfer_value))
+            self.output.log_line("    Queued distribution of preferences with transfer value %g" % (transfer_value))
             self.exclusion_distributions_pending.append((candidate_id, transfer_value))
 
     def process_election(self, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
-        print("Distribution of elected candidate %s at transfer value %g:" % (self.candidate_title(distributed_candidate_id), transfer_value))
+        self.output.log_line("Distribution of elected candidate %s at transfer value %g:" % (self.candidate_title(distributed_candidate_id), transfer_value))
 
         total, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
             distributed_candidate_id,
@@ -406,12 +409,11 @@ class SenateCounter:
             transfer_value,
             last_total)
         total[distributed_candidate_id] = self.quota
-        print()
         return total, exhausted_votes, exhausted_papers
 
     def process_exclusion(self, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
-        print("Exclusion of candidate %s: distribution of preferences with transfer value %g" % (self.candidate_title(distributed_candidate_id), transfer_value))
+        self.output.log_line("Exclusion of candidate %s: distribution of preferences with transfer value %g" % (self.candidate_title(distributed_candidate_id), transfer_value))
         bundles_to_distribute = []
         for bundle in self.candidate_bundle_transactions.get(distributed_candidate_id):
             if bundle.get_transfer_value() == transfer_value:
@@ -422,7 +424,6 @@ class SenateCounter:
             bundles_to_distribute,
             transfer_value,
             last_total)
-        print()
         return candidate_votes, exhausted_votes, exhausted_papers
 
     def have_pending_exclusion_distribution(self):
@@ -548,10 +549,10 @@ class SenateCounter:
             columns.insert(-1, delta_column(columns[-2], columns[-1]))
 
         fmt = "  ".join("%%%ds" % (t) for t in widths)
-        print(fmt % (tuple(header)))
+        self.output.log_line(fmt % (tuple(header)))
 
         for row_idx in range(len(columns[0])):
-            print(fmt % (tuple(column[row_idx] for column in columns)))
+            self.output.log_line(fmt % (tuple(column[row_idx] for column in columns)))
 
     def find_tie_breaker(self, candidate_ids):
         """
@@ -571,7 +572,7 @@ class SenateCounter:
     def ask_electoral_officer_tie(self, question, candidate_ids):
         sorted_candidate_ids = list(sorted(candidate_ids, key=self.candidate_title))
         for idx, candidate_id in enumerate(sorted_candidate_ids):
-            print("[%3d] - %s" % (idx+1, self.candidate_title(candidate_id)))
+            self.output.log_line("[%3d] - %s" % (idx+1, self.candidate_title(candidate_id)), echo=True)
         return sorted_candidate_ids[int(self.input_or_automated(question)) - 1]
 
     def exclude_a_candidate(self, candidate_aggregates):
@@ -592,23 +593,23 @@ class SenateCounter:
                 candidates_for_exclusion.append(candidate_id)
 
         if len(candidates_for_exclusion) > 1:
-            print("\nMultiple candidates for exclusion holding %d votes:" % (min_votes))
+            self.output.log_line("\nMultiple candidates for exclusion holding %d votes:" % (min_votes))
             for candidate_id in candidates_for_exclusion:
-                print("    %s" % self.candidate_title(candidate_id))
+                self.output.log_line("    %s" % self.candidate_title(candidate_id))
             tie_breaker_round = self.find_tie_breaker(candidates_for_exclusion)
             if tie_breaker_round is not None:
                 excluded_votes = dict((tie_breaker_round.get_vote_count(candidate_id), candidate_id) for candidate_id in candidates_for_exclusion)
-                print("Tie broken from previous totals")
+                self.output.log_line("Tie broken from previous totals")
                 lowest_vote = min(excluded_votes)
                 excluded_candidate_id = excluded_votes[lowest_vote]
             else:
-                print("No tie breaker round: input required from Australian Electoral Officer. Exclude candidate:")
+                self.output.log_line("No tie breaker round: input required from Australian Electoral Officer. Exclude candidate:", echo=True)
                 excluded_candidate_id = self.ask_electoral_officer_tie("exclude candidate: ", candidates_for_exclusion)
         else:
             excluded_candidate_id = candidates_for_exclusion[0]
         self.exclude(excluded_candidate_id)
         if next_to_min_votes is not None:
-            print("Exclusion margin from next candidate (%s): %d votes (%d vs. %d)" % (','.join(self.candidate_title(t) for t in candidates_next_excluded), next_to_min_votes - min_votes, min_votes, next_to_min_votes))
+            self.output.log_line("Exclusion margin from next candidate (%s): %d votes (%d vs. %d)" % (','.join(self.candidate_title(t) for t in candidates_next_excluded), next_to_min_votes - min_votes, min_votes, next_to_min_votes))
 
     def process_round(self, round_number):
         if round_number > 1:
@@ -640,7 +641,7 @@ class SenateCounter:
             for candidate_id in elected:
                 self.elect(candidate_aggregates, candidate_id)
                 if len(self.candidates_elected) == self.vacancies:
-                    print("\nAll vacancies filled.\n")
+                    self.output.log_line("\nAll vacancies filled.\n")
                     return False
         elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
             # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even 
@@ -656,7 +657,7 @@ class SenateCounter:
                 elif candidate_b_votes > candidate_a_votes:
                     self.elect(candidate_aggregates, candidate_b)
                 else:
-                    print("Final two candidates lack a quota and are tied. Australian Electoral Officer for this state must decided the final election.")
+                    self.output.log_line("Final two candidates lack a quota and are tied. Australian Electoral Officer for this state must decided the final election.", echo=True)
                     self.elect(self.ask_electoral_officer_tie("choose candidate to elect: ", in_the_running))
                 return False
             # if a distribution doesn't generate any 
@@ -672,15 +673,15 @@ class SenateCounter:
         # this is the definitive data structure recording which votes go to which candidate
         # and how many votes that candidate has. it is mutated each round.
         for round_number in itertools.count(1):
-            print ("\n*** Start count: %d ***\n" % (round_number))
+            self.output.log_line ("\n*** Start count: %d ***\n" % (round_number))
             if not self.process_round(round_number):
                 break
 
     def summary(self):
-        print("Candidates elected:")
+        self.output.log_line("Candidates elected:")
         for idx, candidate_id in enumerate(self.candidates_elected):
-            print("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
-        print("\nExclusion order:")
+            self.output.log_line("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
+        self.output.log_line("\nExclusion order:")
         for idx, candidate_id in enumerate(self.candidates_excluded):
-            print("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
+            self.output.log_line("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
 

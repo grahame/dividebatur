@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, os, csv, itertools, pickle, lzma
+import sys, os, csv, itertools, pickle, lzma, json
 from collections import namedtuple
 from counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
 
@@ -131,7 +131,7 @@ class SenateBTL:
         for ticket in sorted(self.ticket_votes, key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
 
-def senate_count(state_name, vacancies, data_dir):
+def senate_count(state_name, vacancies, data_dir, automation, **kwargs):
     def load_tickets(ticket_obj):
         if ticket_obj is None:
             return
@@ -150,8 +150,21 @@ def senate_count(state_name, vacancies, data_dir):
         atl.get_candidate_ids(),
         lambda candidate_id: atl.get_candidate_order(candidate_id),
         lambda candidate_id: atl.get_candidate_title(candidate_id),
-        sys.argv[2:])
+        automation,
+        **kwargs)
+
+def main():
+    config_file = sys.argv[1]
+    base_dir = os.path.dirname(os.path.abspath(config_file))
+    with open(config_file) as fd:
+        config = json.load(fd)
+    for count in config['count']:
+        data_dir = os.path.join(base_dir, count['path'])
+        senate_count(
+            config['state'], config['vacancies'], data_dir,
+            count.get('automation') or [],
+            name=count.get('name'),
+            description=count.get('description'))
 
 if __name__ == '__main__':
-    data_dir = sys.argv[1]
-    senate_count('WA', 6, data_dir)
+    main()
