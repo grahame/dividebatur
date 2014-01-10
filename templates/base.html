@@ -55,6 +55,7 @@
         <a name="round{{round.number|escape}}"></a>
         <h2>Round {{round.number|numberfmt}}</h2>
 
+            <pre>{{ round.count | escape }}</pre>
 
             {% if round.post %}
             {% for post in round.post %}

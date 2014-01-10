@@ -462,103 +462,36 @@ class SenateCounter:
                 json.dump(log, fd, sort_keys=True,
                     indent=4, separators=(',', ': '))
 
-    def print_round(self, round_number, last_candidate_aggregates, candidate_aggregates):
-        header = []
-        columns = []
-        widths = []
+    def log_round_count(self, round_log, last_candidate_aggregates, candidate_aggregates):
+        def exloss(a):
+            return {
+                'exhausted' : a.get_exhausted_papers(),
+                'gain_loss_papers' : a.get_gain_loss_papers(),
+                'gain_loss_votes' : a.get_gain_loss_votes(),
+            }
+        def agg(a):
+            return {
+                'votes' : a.get_vote_count(candidate_id),
+                'papers' : a.get_paper_count(candidate_id)
+            }
 
-        def candidates_column():
-            c = []
-            for candidate_id in self.candidate_ids_display(candidate_aggregates):
-                c.append(self.candidate_title(candidate_id))
-            c.append("Exhausted")
-            c.append("Gain/loss")
-            c.append("Total")
-            return c
-
-        def papers_column(agg):
-            c = []
-            for candidate_id in self.candidate_ids_display(agg):
-                c.append(agg.get_paper_count(candidate_id))
-            c.append(agg.get_exhausted_papers())
-            c.append(agg.get_gain_loss_papers())
-            c.append(sum(c))
-            return c
-
-        def votes_column(agg):
-            c = []
-            for candidate_id in self.candidate_ids_display(agg):
-                c.append(agg.get_vote_count(candidate_id))
-            c.append(agg.get_exhausted_votes())
-            c.append(agg.get_gain_loss_votes())
-            c.append(sum(c))
-            return c
-
-        def delta_column(c1, c2):
-            assert(len(c1) == len(c2))
-            c = []
-            for row in range(len(c1)):
-                c.append(c2[row] - c1[row])
-            # no net changes!
-            assert(sum(c) == 0)
-            c.append(sum(c))
-            return c
-
-        def status_column():
-            c = []
-            for candidate_id in self.candidate_ids_display(candidate_aggregates):
-                if candidate_id in self.candidates_elected:
-                    c.append("✓")
-                elif candidate_id in self.candidates_excluded:
-                    c.append("✗")
-                else:
-                    c.append("")
-            c.append("")
-            c.append("")
-            c.append("")
-            return c
-
-        header.append("Candidate")
-        widths.append(25)
-        columns.append(candidates_column())
-
-        header.append("Status")
-        widths.append(6)
-        columns.append(status_column())
-
-        nw = 12
-
-        # paper columns
+        r = {
+            'candidates' : [],
+            'after' : exloss(candidate_aggregates)
+        }
         if last_candidate_aggregates is not None:
-            header.append("Papers @ %d"  % (round_number-1))
-            widths.append(nw)
-            columns.append(papers_column(last_candidate_aggregates))
-        header.append("Papers @ %d"  % (round_number))
-        widths.append(nw)
-        columns.append(papers_column(candidate_aggregates))
-        if last_candidate_aggregates is not None:
-            header.insert(-1, "ΔPapers")
-            widths.insert(-1, nw)
-            columns.insert(-1, delta_column(columns[-2], columns[-1]))
-
-        # vote columns
-        if last_candidate_aggregates is not None:
-            header.append("Votes @ %d"  % (round_number-1))
-            widths.append(nw)
-            columns.append(votes_column(last_candidate_aggregates))
-        header.append("Votes @ %d"  % (round_number))
-        widths.append(nw)
-        columns.append(votes_column(candidate_aggregates))
-        if last_candidate_aggregates is not None:
-            header.insert(-1, "ΔVotes")
-            widths.insert(-1, nw)
-            columns.insert(-1, delta_column(columns[-2], columns[-1]))
-
-        fmt = "  ".join("%%%ds" % (t) for t in widths)
-        self.output.log_line(fmt % (tuple(header)))
-
-        for row_idx in range(len(columns[0])):
-            self.output.log_line(fmt % (tuple(column[row_idx] for column in columns)))
+            r['before'] = exloss(last_candidate_aggregates)
+        for candidate_id in self.candidate_ids_display(candidate_aggregates):
+            entry = {
+                'title' : self.candidate_title(candidate_id),
+                'after' : agg(candidate_aggregates),
+                'elected' : candidate_id in self.candidates_elected,
+                'excluded' : candidate_id in self.candidates_excluded,
+            }
+            if last_candidate_aggregates is not None:
+                entry['before'] = agg(last_candidate_aggregates)
+            r['candidates'].append(entry)
+        return r
 
     def find_tie_breaker(self, candidate_ids):
         """
@@ -643,7 +576,7 @@ class SenateCounter:
 
         self.json_log(round_number, candidate_aggregates)
         round_log.set_aggregates(last_candidate_aggregates, candidate_aggregates)
-        self.print_round(round_number, last_candidate_aggregates, candidate_aggregates)
+        round_log.set_count(self.log_round_count(round_log, last_candidate_aggregates, candidate_aggregates))
 
         elected = self.elected_candidates_in_order(round_log, candidate_aggregates)
         if len(elected) > 0:

@@ -34,6 +34,9 @@ class RoundLog(LogEntry):
     def set_aggregates(self, last_candidate_aggregates, candidate_aggregates):
         self.last_candidate_aggregates, self.candidate_aggregates = last_candidate_aggregates, candidate_aggregates
 
+    def set_count(self, count):
+        self.count = count
+
     def post_note(self, message):
         self.post.append(message)
 
