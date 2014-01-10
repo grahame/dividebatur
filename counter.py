@@ -689,10 +689,11 @@ class SenateCounter:
                 break
 
     def summary(self):
-        self.output.log_line("Candidates elected:")
-        for idx, candidate_id in enumerate(self.candidates_elected):
-            self.output.log_line("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
-        self.output.log_line("\nExclusion order:")
-        for idx, candidate_id in enumerate(self.candidates_excluded):
-            self.output.log_line("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
+        with LogEntry(round_log) as entry:
+            entry.log("Candidates elected:")
+            for idx, candidate_id in enumerate(self.candidates_elected):
+                entry.log("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
+            entry.log("\nExclusion order:")
+            for idx, candidate_id in enumerate(self.candidates_excluded):
+                entry.log("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
 
