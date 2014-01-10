@@ -403,7 +403,7 @@ class SenateCounter:
 
     def process_election(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
-        with LogEntry(round_log) as entry:
+        with LogEntry(round_log, False) as entry:
             entry.log("Distribution of elected candidate %s at transfer value %g:" % (self.candidate_title(distributed_candidate_id), transfer_value))
 
             total, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
@@ -417,7 +417,7 @@ class SenateCounter:
 
     def process_exclusion(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
-        with LogEntry(round_log) as entry:
+        with LogEntry(round_log, False) as entry:
             entry.log("Exclusion of candidate %s: distribution of preferences with transfer value %g" % (self.candidate_title(distributed_candidate_id), transfer_value))
             bundles_to_distribute = []
             for bundle in self.candidate_bundle_transactions.get(distributed_candidate_id):
@@ -583,7 +583,7 @@ class SenateCounter:
             for candidate_id in elected:
                 self.elect(round_log, candidate_aggregates, candidate_id)
                 if len(self.candidates_elected) == self.vacancies:
-                    round_log.post_note("All vacancies filled.")
+                    round_log.note("All vacancies filled.", True)
                     return False
         elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
             # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even 

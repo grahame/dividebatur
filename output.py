@@ -2,9 +2,10 @@ from jinja2 import Environment, FileSystemLoader
 import sys, datetime
 
 class LogEntry:
-    def __init__(self, output):
+    def __init__(self, output, post=True):
         self.lines = []
         self.output_to = output
+        self.post = post
 
     def __enter__(self):
         return self
@@ -15,7 +16,7 @@ class LogEntry:
             print(line, file=sys.stderr, end=end)
 
     def __exit__(self, type, value, tb):
-        self.output_to.post_note('\n'.join(self.lines))
+        self.output_to.note('\n'.join(self.lines), self.post)
 
 class LogLine:
     def __init__(self, line, echo=False, end=None):
@@ -29,6 +30,7 @@ class LogLine:
 class RoundLog(LogEntry):
     def __init__(self, number):
         self.number = number
+        self.pre = []
         self.post = []
 
     def set_aggregates(self, last_candidate_aggregates, candidate_aggregates):
@@ -37,8 +39,11 @@ class RoundLog(LogEntry):
     def set_count(self, count):
         self.count = count
 
-    def post_note(self, message):
-        self.post.append(message)
+    def note(self, message, post):
+        if post:
+            self.post.append(message)
+        else:
+            self.pre.append(message)
 
 class HtmlOutput:
     def __init__(self):

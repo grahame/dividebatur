@@ -55,7 +55,23 @@
         <a name="round{{round.number|escape}}"></a>
         <h2>Round {{round.number|numberfmt}}</h2>
 
-            <pre>{{ round.count | escape }}</pre>
+            {% if round.pre %}
+            {% for post in round.pre %}
+                <pre>{{ post | escape }}</pre>
+            {% endfor %}
+            {% endif %}
+
+            <table class="table table-bordered">
+                <tbody>
+                {% for candidate in round.count.candidates %}
+                    <tr>
+                        <th>{{ candidate.title }}</th>
+                        <td>{{ candidate.after.votes}}</td>
+                        <td>{{ candidate.after.papers}}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
 
             {% if round.post %}
             {% for post in round.post %}
