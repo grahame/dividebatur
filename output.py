@@ -2,11 +2,23 @@ from jinja2 import Environment, FileSystemLoader
 import sys, datetime
 
 class LogEntry:
-    pass
+    def __init__(self, output):
+        self.lines = []
+        self.output_to = output
 
-class LogLine(LogEntry):
+    def __enter__(self):
+        return self
+
+    def log(self, line, echo=False, end=None):
+        self.lines.append(line)
+        if echo:
+            print(line, file=sys.stderr, end=end)
+
+    def __exit__(self, type, value, tb):
+        self.output_to.post_note('\n'.join(self.lines))
+
+class LogLine:
     def __init__(self, line, echo=False, end=None):
-        super(LogLine, self).__init__()
         self.line = line
         if echo:
             print(line, file=sys.stderr, end=end)
@@ -18,6 +30,9 @@ class RoundLog(LogEntry):
     def __init__(self, number):
         self.number = number
         self.post = []
+
+    def set_aggregates(self, last_candidate_aggregates, candidate_aggregates):
+        self.last_candidate_aggregates, self.candidate_aggregates = last_candidate_aggregates, candidate_aggregates
 
     def post_note(self, message):
         self.post.append(message)

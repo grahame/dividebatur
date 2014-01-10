@@ -164,7 +164,9 @@ def main():
             config['state'], config['vacancies'], data_dir,
             count.get('automation') or [],
             name=count.get('name'),
-            description=count.get('description'))
+            description=count.get('description'),
+            house=config['house'],
+            state=config['state'])
 
 if __name__ == '__main__':
     main()

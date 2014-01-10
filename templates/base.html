@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title></title>
+    <meta charset="UTF-8">
+    <title>{{ name | escape }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css">
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap-theme.min.css">
@@ -13,7 +14,7 @@
         <h1>Senate Vote Count &mdash; {{ name | escape }} </h1>
 
         <div class="row">
-            <div class="col-lg-4 col-md-4">
+            <div class="col-lg-6 col-md-6">
                 <table class="table table-bordered">
                     <tbody>
                         <tr>
@@ -21,20 +22,24 @@
                             <td>{{ description | escape }}</td>
                         </tr>
                         <tr>
-                            <th>Total papers</th>
-                            <td>{{ counter.total_papers | numberfmt }}</td>
+                            <th>Executed</th>
+                            <td>{{ dt.strftime("%Y-%m-%d %H:%M") | escape }}</td>
+                        </tr>
+                        <tr>
+                            <th>House</th>
+                            <td>{{ house | escape }} ({{ state | escape }})</td>
                         </tr>
                         <tr>
                             <th>Vacancies</th>
                             <td>{{ counter.vacancies | numberfmt }}</td>
                         </tr>
                         <tr>
-                            <th>Quota for election</th>
-                            <td>{{ counter.quota | numberfmt }}</td>
+                            <th>Total papers</th>
+                            <td>{{ counter.total_papers | numberfmt }}</td>
                         </tr>
                         <tr>
-                            <th>Executed</th>
-                            <td>{{ dt.strftime("%Y-%m-%d %H:%M") | escape }}</td>
+                            <th>Quota for election</th>
+                            <td>{{ counter.quota | numberfmt }}</td>
                         </tr>
                         <tr>
                             <th>Rounds of counting</th>
@@ -52,11 +57,9 @@
 
 
             {% if round.post %}
-            <ul>
-                {% for post in round.post %}
-                    <li>{{ post | escape }}</li>
-                {% endfor %}
-            </ul>
+            {% for post in round.post %}
+                <pre>{{ post | escape }}</pre>
+            {% endfor %}
             {% endif %}
 
         {% endfor %}
