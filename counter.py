@@ -239,7 +239,7 @@ class SenateCounter:
         # execute the count
         self.count()
         # log who got elected/excluded
-        self.summary()
+        self.output.set_summary(self.summary())
         # render to HTML
         self.output.render(self, template_vars)
 
@@ -689,10 +689,12 @@ class SenateCounter:
                 break
 
     def summary(self):
-        self.output.log_line("Candidates elected:")
+        r = {
+            'elected' : [],
+            'excluded' : []
+        }
         for idx, candidate_id in enumerate(self.candidates_elected):
-            self.output.log_line("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
-        self.output.log_line("\nExclusion order:")
+            r['elected'].append(self.candidate_title(candidate_id))
         for idx, candidate_id in enumerate(self.candidates_excluded):
-            self.output.log_line("    %3d - %s" % (idx+1, self.candidate_title(candidate_id)))
-
+            r['excluded'].append(self.candidate_title(candidate_id))
+        return r

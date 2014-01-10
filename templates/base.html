@@ -68,6 +68,22 @@
         <pre>{% for item in log %}{{ item.line|escape }}<br/>{% endfor %}</pre>
         </div>
 
+        <h2>Elected Candidates</h2>
+
+        <ol>
+            {% for title in summary.elected %}
+                <li>{{ title | escape }}</li>
+            {% endfor %}
+        </ol>
+
+        <h2>Excluded Candidates</h2>
+
+        <ol>
+            {% for title in summary.excluded %}
+                <li>{{ title | escape }}</li>
+            {% endfor %}
+        </ol>
+
     </div>
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>

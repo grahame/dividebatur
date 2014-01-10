@@ -48,6 +48,9 @@ class HtmlOutput:
     def add_round(self, round):
         self.rounds.append(round)
 
+    def set_summary(self, summary_info):
+        self.summary = summary_info
+
     def render(self, counter, template_vars):
         env = Environment(loader=FileSystemLoader('./templates/'))
         env.filters['numberfmt'] = lambda v: '{:,d}'.format(v)
@@ -57,6 +60,7 @@ class HtmlOutput:
             counter=counter,
             rounds=self.rounds,
             number_rounds=len(self.rounds),
+            summary=self.summary,
             dt=datetime.datetime.now(),
             **template_vars))
 
