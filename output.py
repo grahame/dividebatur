@@ -18,15 +18,6 @@ class LogEntry:
     def __exit__(self, type, value, tb):
         self.output_to.note('\n'.join(self.lines), self.post)
 
-class LogLine:
-    def __init__(self, line, echo=False, end=None):
-        self.line = line
-        if echo:
-            print(line, file=sys.stderr, end=end)
-
-    def line(self):
-        return self.line
-
 class RoundLog(LogEntry):
     def __init__(self, number):
         self.number = number
@@ -72,9 +63,6 @@ class HtmlOutput:
         self.rounds = []
         self.log = []
         self.fname = fname
-
-    def log_line(self, *args, **kwargs):
-        self.log.append(LogLine(*args, **kwargs))
 
     def add_round(self, round):
         self.rounds.append(round)
