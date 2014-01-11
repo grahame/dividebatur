@@ -217,8 +217,8 @@ class CandidateAggregates:
         return self.gain_loss_votes
 
 class SenateCounter:
-    def __init__(self, vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title, automated_responses, **template_vars):
-        self.output = HtmlOutput()
+    def __init__(self, fname, vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title, automated_responses, **template_vars):
+        self.output = HtmlOutput(fname)
         self.automated_responses = automated_responses
         self.vacancies, self.papers_for_count, self.candidate_ids, self.candidate_order, self.candidate_title = \
             vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title
@@ -472,8 +472,13 @@ class SenateCounter:
         def agg(a):
             return {
                 'votes' : a.get_vote_count(candidate_id),
-                'papers' : a.get_paper_count(candidate_id)
+                'papers' : a.get_paper_count(candidate_id),
+                'quotas' : a.get_vote_count(candidate_id) / self.quota
             }
+        def index_or_none(l, v):
+            if v in l:
+                return l.index(v) + 1
+            return None
 
         r = {
             'candidates' : [],
@@ -485,11 +490,18 @@ class SenateCounter:
             entry = {
                 'title' : self.candidate_title(candidate_id),
                 'after' : agg(candidate_aggregates),
-                'elected' : candidate_id in self.candidates_elected,
-                'excluded' : candidate_id in self.candidates_excluded,
+                'elected' : index_or_none(self.candidates_elected, candidate_id),
+                'excluded' : index_or_none(self.candidates_excluded, candidate_id),
             }
+            done = False
+            if entry['elected'] or entry['excluded']:
+                if candidate_id not in (t[0] for t in self.exclusion_distributions_pending) and \
+                        candidate_id not in (t[0] for t in self.election_distributions_pending):
+                    done = True
+            entry['done'] = done
             if last_candidate_aggregates is not None:
                 entry['before'] = agg(last_candidate_aggregates)
+                entry['delta'] = dict((t, entry['after'][t] - entry['before'][t]) for t in entry['before'])
             r['candidates'].append(entry)
         return r
 
@@ -562,11 +574,14 @@ class SenateCounter:
             exhausted_votes = exhausted_papers = 0
 
         if round_number == 1:
-            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = self.get_initial_totals()
+            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
+                self.get_initial_totals()
         elif self.have_pending_exclusion_distribution():
-            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = self.process_exclusion_distribution(round_log, last_candidate_aggregates)
+            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
+                self.process_exclusion_distribution(round_log, last_candidate_aggregates)
         elif len(self.election_distributions_pending) > 0:
-            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = self.process_election_distribution(round_log, last_candidate_aggregates)
+            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
+                self.process_election_distribution(round_log, last_candidate_aggregates)
         else:
             raise Exception("No distribution or exclusion this round. Nothing to do - unreachable.")
 
@@ -575,39 +590,41 @@ class SenateCounter:
         self.round_candidate_aggregates.append(candidate_aggregates)
 
         self.json_log(round_number, candidate_aggregates)
-        round_log.set_aggregates(last_candidate_aggregates, candidate_aggregates)
-        round_log.set_count(self.log_round_count(round_log, last_candidate_aggregates, candidate_aggregates))
 
-        elected = self.elected_candidates_in_order(round_log, candidate_aggregates)
-        if len(elected) > 0:
-            for candidate_id in elected:
-                self.elect(round_log, candidate_aggregates, candidate_id)
-                if len(self.candidates_elected) == self.vacancies:
-                    round_log.note("All vacancies filled.", True)
+        try:
+            elected = self.elected_candidates_in_order(round_log, candidate_aggregates)
+            if len(elected) > 0:
+                for candidate_id in elected:
+                    self.elect(round_log, candidate_aggregates, candidate_id)
+                    if len(self.candidates_elected) == self.vacancies:
+                        round_log.note("All vacancies filled.", True)
+                        return False
+            elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
+                # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even 
+                # if they don't have a quota
+                in_the_running = list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
+                if len(in_the_running) == 2:
+                    candidate_a = in_the_running[0]
+                    candidate_b = in_the_running[1]
+                    candidate_a_votes = candidate_aggregates.get_vote_count(candidate_a)
+                    candidate_b_votes = candidate_aggregates.get_vote_count(candidate_b)
+                    if candidate_a_votes > candidate_b_votes:
+                        self.elect(round_log, candidate_aggregates, candidate_a)
+                    elif candidate_b_votes > candidate_a_votes:
+                        self.elect(round_log, candidate_aggregates, candidate_b)
+                    else:
+                        with LogEntry(round_log) as entry:
+                            entry.log("Final two candidates lack a quota and are tied. Australian Electoral Officer for this state must decided the final election.", echo=True)
+                            self.elect(round_log, self.ask_electoral_officer_tie(entry, "choose candidate to elect: ", in_the_running))
                     return False
-        elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
-            # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even 
-            # if they don't have a quota
-            in_the_running = list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
-            if len(in_the_running) == 2:
-                candidate_a = in_the_running[0]
-                candidate_b = in_the_running[1]
-                candidate_a_votes = candidate_aggregates.get_vote_count(candidate_a)
-                candidate_b_votes = candidate_aggregates.get_vote_count(candidate_b)
-                if candidate_a_votes > candidate_b_votes:
-                    self.elect(round_log, candidate_aggregates, candidate_a)
-                elif candidate_b_votes > candidate_a_votes:
-                    self.elect(round_log, candidate_aggregates, candidate_b)
-                else:
-                    with LogEntry(round_log) as entry:
-                        entry.log("Final two candidates lack a quota and are tied. Australian Electoral Officer for this state must decided the final election.", echo=True)
-                        self.elect(round_log, self.ask_electoral_officer_tie(entry, "choose candidate to elect: ", in_the_running))
-                return False
-            # if a distribution doesn't generate any 
-            while True:
-                self.exclude_a_candidate(round_log, candidate_aggregates)
-                if self.have_pending_exclusion_distribution():
-                    break
+                # if a distribution doesn't generate any 
+                while True:
+                    self.exclude_a_candidate(round_log, candidate_aggregates)
+                    if self.have_pending_exclusion_distribution():
+                        break
+        finally:
+            # we want to log elected candidates from this round
+            round_log.set_count(self.log_round_count(round_log, last_candidate_aggregates, candidate_aggregates))
         # keep going
         return True
 

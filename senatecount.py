@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, os, csv, itertools, pickle, lzma, json
+import sys, os, csv, itertools, pickle, lzma, json, hashlib
 from collections import namedtuple
 from counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
 
@@ -131,7 +131,7 @@ class SenateBTL:
         for ticket in sorted(self.ticket_votes, key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
 
-def senate_count(state_name, vacancies, data_dir, automation, **kwargs):
+def senate_count(fname, state_name, vacancies, data_dir, automation, **kwargs):
     def load_tickets(ticket_obj):
         if ticket_obj is None:
             return
@@ -145,6 +145,7 @@ def senate_count(state_name, vacancies, data_dir, automation, **kwargs):
     load_tickets(atl)
     load_tickets(btl)
     counter = SenateCounter(
+        fname,
         vacancies,
         tickets_for_count,
         atl.get_candidate_ids(),
@@ -154,13 +155,17 @@ def senate_count(state_name, vacancies, data_dir, automation, **kwargs):
         **kwargs)
 
 def main():
+    def name_fname(f):
+        return hashlib.sha1(f.encode('utf8')).hexdigest()[:4] + '.html'
     config_file = sys.argv[1]
+    out_dir = sys.argv[2]
     base_dir = os.path.dirname(os.path.abspath(config_file))
     with open(config_file) as fd:
         config = json.load(fd)
     for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
         senate_count(
+            os.path.join(out_dir, name_fname(count['name'])), 
             config['state'], config['vacancies'], data_dir,
             count.get('automation') or [],
             name=count.get('name'),

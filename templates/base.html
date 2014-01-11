@@ -11,10 +11,10 @@
 
     <div class="container" id="content">
 
-        <h1>Senate Vote Count &mdash; {{ name | escape }} </h1>
+        <h1>{{ name | escape }} </h1>
 
         <div class="row">
-            <div class="col-lg-6 col-md-6">
+            <div>
                 <table class="table table-bordered">
                     <tbody>
                         <tr>
@@ -23,7 +23,7 @@
                         </tr>
                         <tr>
                             <th>Executed</th>
-                            <td>{{ dt.strftime("%Y-%m-%d %H:%M") | escape }}</td>
+                            <td>{{ dt.strftime("%Y-%m-%d %H:%M") | escape }} using <a href="https://github.com/grahame/dividebatur">dividebatur</a></td>
                         </tr>
                         <tr>
                             <th>House</th>
@@ -52,8 +52,10 @@
 
         {% for round in rounds %}
 
-        <a name="round{{round.number|escape}}"></a>
-        <h2>Round {{round.number|numberfmt}}</h2>
+        <div class="row">
+
+            <a name="round{{round.number|escape}}"></a>
+            <h2>Round {{round.number|numberfmt}}</h2>
 
             {% if round.pre %}
             {% for post in round.pre %}
@@ -62,13 +64,74 @@
             {% endif %}
 
             <table class="table table-bordered">
+                <colgroup>
+                   {% if round.count.before %}
+                   <col span="1" style="width: 50%;">
+                   <col span="1" style="width: 10%;">
+                   <col span="1" style="width: 10%;">
+                   <col span="1" style="width: 10%;">
+                   {% else %}
+                   <col span="1" style="width: 50%;">
+                   <col span="1" style="width: 10%;">
+                   <col span="1" style="width: 10%;">
+                   <col span="1" style="width: 10%;">
+                   <col span="1" style="width: 10%;">
+                   <col span="1" style="width: 10%;">
+                   {% endif %}
+                </colgroup>
                 <tbody>
+                <tr>
+                    {% if round.count.before %}
+                    <th>Candidate</th>
+                    <th>Δ&nbsp;Papers</th>
+                    <th>Papers</th>
+                    <th>Δ&nbsp;Votes</th>
+                    <th>Votes</th>
+                    <th>Quotas</th>
+                    {% else %}
+                    <th>Candidate</th>
+                    <th>Papers</th>
+                    <th>Votes</th>
+                    <th>Quotas</th>
+                    {% endif %}
+                </tr>
                 {% for candidate in round.count.candidates %}
+                    {% if not candidate.done %}
                     <tr>
-                        <th>{{ candidate.title }}</th>
-                        <td>{{ candidate.after.votes}}</td>
+                        <th>
+                            {{ candidate.title }}
+                            {% if candidate.elected %}
+                            <span class="badge">{{candidate.elected}}</span>
+                            {% endif %}
+                            {% if candidate.excluded %}
+                            <span class="glyphicon glyphicon-remove-circle"></span>
+                            {% endif %}
+                        </th>
+                        {% if round.count.before %}
+                        <td>
+                        {% if candidate.delta.papers > 0 %}
+                        +{{ candidate.delta.papers }}
+                        {% endif %}
+                        {% if candidate.delta.papers < 0 %}
+                        {{ candidate.delta.papers }}
+                        {% endif %}
+                        </td>
+                        {% endif %}
                         <td>{{ candidate.after.papers}}</td>
+                        {% if round.count.before %}
+                        <td>
+                        {% if candidate.delta.votes > 0 %}
+                        +{{ candidate.delta.votes }}
+                        {% endif %}
+                        {% if candidate.delta.votes < 0 %}
+                        {{ candidate.delta.votes }}
+                        {% endif %}
+                        </td>
+                        {% endif %}
+                        <td>{{ candidate.after.votes }}</td>
+                        <td>{{ candidate.after.quotas | f2 }}</td>
                     </tr>
+                    {% endif %}
                 {% endfor %}
                 </tbody>
             </table>
@@ -78,12 +141,8 @@
                 <pre>{{ post | escape }}</pre>
             {% endfor %}
             {% endif %}
-
-        {% endfor %}
-
-        <div class="row">
-        <pre>{% for item in log %}{{ item.line|escape }}<br/>{% endfor %}</pre>
         </div>
+        {% endfor %}
 
         <h2>Elected Candidates</h2>
 

@@ -33,9 +33,6 @@ class RoundLog(LogEntry):
         self.pre = []
         self.post = []
 
-    def set_aggregates(self, last_candidate_aggregates, candidate_aggregates):
-        self.last_candidate_aggregates, self.candidate_aggregates = last_candidate_aggregates, candidate_aggregates
-
     def set_count(self, count):
         self.count = count
 
@@ -46,9 +43,10 @@ class RoundLog(LogEntry):
             self.pre.append(message)
 
 class HtmlOutput:
-    def __init__(self):
+    def __init__(self, fname):
         self.rounds = []
         self.log = []
+        self.fname = fname
 
     def log_line(self, *args, **kwargs):
         self.log.append(LogLine(*args, **kwargs))
@@ -62,13 +60,15 @@ class HtmlOutput:
     def render(self, counter, template_vars):
         env = Environment(loader=FileSystemLoader('./templates/'))
         env.filters['numberfmt'] = lambda v: '{:,d}'.format(v)
+        env.filters['f2'] = lambda v: '{:,.2f}'.format(v)
         template = env.get_template('base.html')
-        print(template.render(
-            log=self.log,
-            counter=counter,
-            rounds=self.rounds,
-            number_rounds=len(self.rounds),
-            summary=self.summary,
-            dt=datetime.datetime.now(),
-            **template_vars))
+        with open(self.fname, 'w') as fd:
+            print(template.render(
+                log=self.log,
+                counter=counter,
+                rounds=self.rounds,
+                number_rounds=len(self.rounds),
+                summary=self.summary,
+                dt=datetime.datetime.now(),
+                **template_vars), file=fd)
 
