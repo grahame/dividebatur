@@ -32,9 +32,34 @@ class RoundLog(LogEntry):
         self.number = number
         self.pre = []
         self.post = []
+        self.elected = []
+        self.excluded = None
+        self.action = None
 
     def set_count(self, count):
         self.count = count
+
+    def set_action(self, action):
+        self.action = action
+
+    def add_elected(self, candidate_title, pos, transfer):
+        if transfer is not None:
+            t = { 'excess' : transfer[0], 'value' : transfer[1] }
+        else:
+            t = None
+        self.elected.append({
+            'title' : candidate_title,
+            'pos' : pos,
+            'transfer' : t
+            })
+
+    def set_excluded(self, candidate_title, next_candidates, margin, transfer_values):
+        self.excluded = {
+            'title' : candidate_title,
+            'margin' : margin,
+            'next_candidates' : next_candidates,
+            'transfers' : transfer_values
+            }
 
     def note(self, message, post):
         if post:

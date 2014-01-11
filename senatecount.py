@@ -151,12 +151,13 @@ def senate_count(fname, state_name, vacancies, data_dir, automation, **kwargs):
         atl.get_candidate_ids(),
         lambda candidate_id: atl.get_candidate_order(candidate_id),
         lambda candidate_id: atl.get_candidate_title(candidate_id),
+        lambda candidate_id: candidates.lookup_id(candidate_id).PartyAb,
         automation,
         **kwargs)
 
 def main():
     def name_fname(f):
-        return hashlib.sha1(f.encode('utf8')).hexdigest()[:4] + '.html'
+        return hashlib.sha1(f.encode('utf8')).hexdigest()[:8] + '.html'
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
     base_dir = os.path.dirname(os.path.abspath(config_file))
@@ -164,8 +165,10 @@ def main():
         config = json.load(fd)
     for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
+        outf = os.path.join(out_dir, name_fname(count['name']))
+        print("counting %s -> %s" % (count['name'], outf))
         senate_count(
-            os.path.join(out_dir, name_fname(count['name'])), 
+            outf, 
             config['state'], config['vacancies'], data_dir,
             count.get('automation') or [],
             name=count.get('name'),

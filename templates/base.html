@@ -8,11 +8,12 @@
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap-theme.min.css">
 </head>
 <body>
-
     <div class="container" id="content">
 
-        <h1>{{ name | escape }} </h1>
-
+        <div class="row">
+            <h1>{{ name | escape }} </h1>
+        </div>
+        
         <div class="row">
             <div>
                 <table class="table table-bordered">
@@ -57,29 +58,35 @@
             <a name="round{{round.number|escape}}"></a>
             <h2>Round {{round.number|numberfmt}}</h2>
 
+            {% if round.action %}
+            <p>
+                {{ round.action }}
+            </p>
+            {% endif %}
+
             {% if round.pre %}
             {% for post in round.pre %}
-                <pre>{{ post | escape }}</pre>
+            <pre>{{ post | escape }}</pre>
             {% endfor %}
             {% endif %}
 
             <table class="table table-bordered">
                 <colgroup>
-                   {% if round.count.before %}
-                   <col span="1" style="width: 50%;">
-                   <col span="1" style="width: 10%;">
-                   <col span="1" style="width: 10%;">
-                   <col span="1" style="width: 10%;">
-                   {% else %}
-                   <col span="1" style="width: 50%;">
-                   <col span="1" style="width: 10%;">
-                   <col span="1" style="width: 10%;">
-                   <col span="1" style="width: 10%;">
-                   <col span="1" style="width: 10%;">
-                   <col span="1" style="width: 10%;">
-                   {% endif %}
-                </colgroup>
-                <tbody>
+                {% if round.count.before %}
+                <col span="1" style="width: 50%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                {% else %}
+                <col span="1" style="width: 50%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                {% endif %}
+            </colgroup>
+            <tbody>
                 <tr>
                     {% if round.count.before %}
                     <th>Candidate</th>
@@ -90,79 +97,116 @@
                     <th>Quotas</th>
                     {% else %}
                     <th>Candidate</th>
-                    <th>Papers</th>
                     <th>Votes</th>
                     <th>Quotas</th>
                     {% endif %}
                 </tr>
                 {% for candidate in round.count.candidates %}
-                    {% if not candidate.done %}
-                    <tr>
-                        <th>
-                            {{ candidate.title }}
-                            {% if candidate.elected %}
-                            <span class="badge">{{candidate.elected}}</span>
-                            {% endif %}
-                            {% if candidate.excluded %}
-                            <span class="glyphicon glyphicon-remove-circle"></span>
-                            {% endif %}
-                        </th>
-                        {% if round.count.before %}
-                        <td>
+                {% if not candidate.done %}
+                <tr>
+                    <th>
+                        <span class="badge">{{ candidate.party }}</span>
+                        {{ candidate.title }}
+                        {% if candidate.elected %}
+                        <span class="badge">{{candidate.elected}}</span>
+                        {% endif %}
+                        {% if candidate.excluded %}
+                        <span class="glyphicon glyphicon-remove-circle"></span>
+                        {% endif %}
+                    </th>
+                    {% if round.count.before %}
+                    <td>
                         {% if candidate.delta.papers > 0 %}
-                        +{{ candidate.delta.papers }}
+                        +{{ candidate.delta.papers | numberfmt }}
                         {% endif %}
                         {% if candidate.delta.papers < 0 %}
-                        {{ candidate.delta.papers }}
+                        {{ candidate.delta.papers | numberfmt }}
                         {% endif %}
-                        </td>
-                        {% endif %}
-                        <td>{{ candidate.after.papers}}</td>
-                        {% if round.count.before %}
-                        <td>
+                    </td>
+                    <td>{{ candidate.after.papers | numberfmt }}</td>
+                    {% endif %}
+                    {% if round.count.before %}
+                    <td>
                         {% if candidate.delta.votes > 0 %}
-                        +{{ candidate.delta.votes }}
+                        +{{ candidate.delta.votes | numberfmt }}
                         {% endif %}
                         {% if candidate.delta.votes < 0 %}
-                        {{ candidate.delta.votes }}
+                        {{ candidate.delta.votes | numberfmt }}
                         {% endif %}
-                        </td>
-                        {% endif %}
-                        <td>{{ candidate.after.votes }}</td>
-                        <td>{{ candidate.after.quotas | f2 }}</td>
-                    </tr>
+                    </td>
                     {% endif %}
+                    <td>{{ candidate.after.votes | numberfmt }}</td>
+                    <td>{{ candidate.after.quotas | f2 }}</td>
+                </tr>
+                {% endif %}
                 {% endfor %}
-                </tbody>
-            </table>
+            </tbody>
+        </table>
 
-            {% if round.post %}
-            {% for post in round.post %}
-                <pre>{{ post | escape }}</pre>
-            {% endfor %}
-            {% endif %}
-        </div>
+        {% if round.post %}
+        {% for post in round.post %}
+        <pre>{{ post | escape }}</pre>
         {% endfor %}
+        {% endif %}
 
+        {% if round.excluded %}
+        <p>{{ round.excluded.title }} excluded.</p>
+        {% if round.excluded.margin %}
+        <p>
+            Nearest candidates (with margin of {{ round.excluded.margin | numberfmt }} votes):
+        </p>
+        <ul>
+            {% for candidate in round.excluded.next_candidates %}
+            <li>{{ candidate | escape }}</li>
+            {% endfor %}
+        </ul>
+        <p>
+            Papers will be distributed from {{ round.excluded.title }} in order:
+        </p>
+        <ul>
+            {% for transfer in round.excluded.transfers %}
+            <li>Papers with transfer value {{ transfer }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endif %}
+
+        {% for election in round.elected %}
+        <p>
+            {{ election.title }} elected #{{ election.pos }}.
+        </p>
+        {% if election.transfer %}
+        <ul>
+            <li>{{ election.transfer.excess | numberfmt }} excess votes to be distributed at transfer value {{election.transfer.value | f2 }}</li>
+        </ul>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div class="row">
         <h2>Elected Candidates</h2>
 
         <ol>
             {% for title in summary.elected %}
-                <li>{{ title | escape }}</li>
+            <li>{{ title | escape }}</li>
             {% endfor %}
         </ol>
+    </div>
 
+    <div class="row">
         <h2>Excluded Candidates</h2>
 
         <ol>
             {% for title in summary.excluded %}
-                <li>{{ title | escape }}</li>
+            <li>{{ title | escape }}</li>
             {% endfor %}
         </ol>
-
     </div>
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+</div>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
 </body>
 </html>
