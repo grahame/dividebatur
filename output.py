@@ -77,6 +77,7 @@ class HtmlOutput:
 
     def render(self, counter, template_vars):
         obj = {
+            'candidates' : counter.candidate_json(),
             'rounds' : [t.json() for t in self.rounds],
             'summary' : self.summary,
             'dt' : datetime.datetime.now().strftime("%Y-%m-%d %H:%M")

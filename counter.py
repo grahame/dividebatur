@@ -243,6 +243,13 @@ class SenateCounter:
         # render to HTML
         self.output.render(self, template_vars)
 
+    def candidate_json(self):
+        return [{
+            'title' : self.candidate_title(candidate_id),
+            'party' : self.candidate_party(candidate_id),
+            'id' : candidate_id
+        } for candidate_id in self.candidate_ids]
+
     def input_or_automated(self, entry, qn):
         if self.next_automated < len(self.automated_responses):
             resp = self.automated_responses[self.next_automated]
