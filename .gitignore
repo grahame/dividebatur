@@ -1,4 +1,5 @@
 __pycache__
 log/
+angular/data
 .DS_Store
 *.pyc
