@@ -10,6 +10,10 @@ divideBaturApp.config(['$routeProvider',
         templateUrl: 'partials/count-list.html',
         controller: 'CountListCtrl'
       }).
+      when('/count/:countId', {
+        templateUrl: 'partials/count-detail.html',
+        controller: 'CountDetailCtrl'
+      }).
       otherwise({
         redirectTo: '/index'
       });

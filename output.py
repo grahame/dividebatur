@@ -84,5 +84,5 @@ class HtmlOutput:
         }
         obj.update(template_vars)
         with open(self.fname, 'w') as fd:
-            json.dump(obj, fd, sort_keys=True, indent=1)
+            json.dump(obj, fd, sort_keys=True, indent=0)
 
