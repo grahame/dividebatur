@@ -1,8 +1,9 @@
 var divideBaturApp = angular.module('divideBaturApp', [
   'ngRoute',
-  'divideBaturControllers'
+  'divideBaturControllers',
+  'divideBaturFilters'
 ]);
- 
+
 divideBaturApp.config(['$routeProvider',
   function($routeProvider) {
     $routeProvider.

@@ -482,10 +482,6 @@ class SenateCounter:
                 'votes' : a.get_vote_count(candidate_id),
                 'papers' : a.get_paper_count(candidate_id)
             }
-        def index_or_none(l, v):
-            if v in l:
-                return l.index(v) + 1
-            return None
 
         r = {
             'candidates' : [],
@@ -501,7 +497,7 @@ class SenateCounter:
             if candidate_id in self.candidates_elected:
                 entry['elected'] = self.candidates_elected.index(candidate_id) + 1
             if candidate_id in self.candidates_excluded:
-                entry['elected'] = self.candidates_excluded.index(candidate_id) + 1                
+                entry['excluded'] = self.candidates_excluded.index(candidate_id) + 1                
             done = False
             if entry.get('elected') or entry.get('excluded'):
                 if candidate_id not in affected and \

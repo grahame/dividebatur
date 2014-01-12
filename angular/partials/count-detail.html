@@ -1,1 +1,103 @@
-{{ count }}
+<div class="container" id="content">
+
+    <div class="row">
+        <h1>{{ count.name }} </h1>
+    </div>
+
+    <div class="row">
+        <div>
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <th>Run</th>
+                        <td>{{ count.description }}</td>
+                    </tr>
+                    <tr>
+                        <th>Executed</th>
+                        <td>{{ count.dt }} using <a href="https://github.com/grahame/dividebatur">dividebatur</a></td>
+                    </tr>
+                    <tr>
+                        <th>House</th>
+                        <td>{{ count.house }} ({{ count.state }})</td>
+                    </tr>
+                    <tr>
+                        <th>Vacancies</th>
+                        <td>{{ count.vacancies | numberfmt }}</td>
+                    </tr>
+                    <tr>
+                        <th>Total papers</th>
+                        <td>{{ count.total_papers | numberfmt }}</td>
+                    </tr>
+                    <tr>
+                        <th>Quota for election</th>
+                        <td>{{ count.quota | numberfmt }}</td>
+                    </tr>
+                    <tr>
+                        <th>Rounds of counting</th>
+                        <td>{{ count.rounds.length | numberfmt }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row" ng-repeat="round in count.rounds">
+
+        <h2>Round {{round.number|numberfmt}}</h2>
+
+        <p ng-if="round.action">
+            {{ round.action }}
+        </p>
+
+        <table class="table table-bordered">
+            <colgroup ng-if="round.count.before">
+            <col span="1" style="width: 50%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            </colgroup>
+            <colgroup ng-if="!round.count.before">
+            <col span="1" style="width: 50%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr ng-if="round.count.before">
+                <th>Candidate</th>
+                <th>Δ&nbsp;Papers</th>
+                <th>Papers</th>
+                <th>Δ&nbsp;Votes</th>
+                <th>Votes</th>
+                <th>Quotas</th>
+            </tr>
+            <tr ng-if="!round.count.before">
+                <th>Candidate</th>
+                <th>Votes</th>
+                <th>Quotas</th>
+            </tr>
+            <tr ng-repeat="candidate in round.count.candidates">
+                <th>
+                    <span class="badge">{{ candidate.id }}</span> {{ candidate.id }}
+                    <span class="badge" ng-if="candidate.elected">{{candidate.elected}}</span>
+                    <span class="glyphicon glyphicon-remove-circle" ng-if="candidate.excluded"></span>
+                </th>
+                <td ng-if="round.count.before">
+                    <span ng-if="candidate.delta.papers > 0">+{{ candidate.delta.papers | numberfmt }}</span>
+                    <span ng-if="candidate.delta.papers < 0">{{ candidate.delta.papers | numberfmt }}</span>
+                </td>
+                <td ng-if="round.count.before">{{ candidate.after.papers | numberfmt }}</td>
+                <td ng-if="round.count.before">
+                    <span ng-if="candidate.delta.votes > 0">+{{ candidate.delta.votes | numberfmt }}</span>
+                    <span ng-if="candidate.delta.votes < 0">{{ candidate.delta.votes | numberfmt }}</span>
+                </td>
+                <td>{{ candidate.after.votes | numberfmt }}</td>
+                <td>{{ candidate.after.votes / count.quota | f2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+</div>
