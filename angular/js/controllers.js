@@ -6,7 +6,6 @@ divideBatur.controller('CountListCtrl', ['$scope', '$http',
             $scope.counts = data;
             $scope.count = $scope.counts[0];
         });
-        $scope.count = null;
     }]);
 
 divideBatur.controller('CountDetailCtrl', ['$scope', '$routeParams', '$http',

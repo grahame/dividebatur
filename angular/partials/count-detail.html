@@ -121,7 +121,7 @@
             </div>
 
             <p>
-                Papers will be distributed from {{ count.candidates[round.excluded.candidate_id].title }} in order:
+                Papers will be distributed from {{ count.candidates[round.excluded.id].title }} in order:
             </p>
             <ul>
                 <li ng-repeat="transfer in round.excluded.transfers">Papers with transfer value {{ transfer | f2 }}</li>
