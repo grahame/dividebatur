@@ -84,7 +84,7 @@
                 </tr>
                 <tr ng-repeat="candidate in round.count.candidates">
                     <th>
-                        <span class="badge">{{ count.candidates[candidate.id].party }}</span>
+                        <span class="badge" tooltip-placement="right" tooltip="{{ count.parties[count.candidates[candidate.id].party].name }}">{{ count.candidates[candidate.id].party }}</span>
                         {{ count.candidates[candidate.id].title }}
                         <span class="badge" ng-if="candidate.elected">{{candidate.elected}}</span>
                         <span class="glyphicon glyphicon-remove-circle" ng-if="candidate.excluded"></span>
