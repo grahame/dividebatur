@@ -56,7 +56,8 @@
 
         <table class="table table-bordered">
             <colgroup ng-if="!round.count.before">
-                <col span="1" style="width: 80%;">
+                <col span="1" style="width: 70%;">
+                <col span="1" style="width: 10%;">
                 <col span="1" style="width: 10%;">
                 <col span="1" style="width: 10%;">
                 </colgroup>
@@ -79,6 +80,7 @@
                 </tr>
                 <tr ng-if="!round.count.before">
                     <th>Candidate</th>
+                    <th>Votes %</th>
                     <th>Votes</th>
                     <th>Quotas</th>
                 </tr>
@@ -98,6 +100,7 @@
                         <span ng-if="candidate.delta.votes > 0">+{{ candidate.delta.votes | numberfmt }}</span>
                         <span ng-if="candidate.delta.votes < 0">{{ candidate.delta.votes | numberfmt }}</span>
                     </td>
+                    <td ng-if="!round.count.before">{{ candidate.after.votes * 100 / count.total_papers | f2 }}%</td>
                     <td>{{ candidate.after.votes | numberfmt }}</td>
                     <td>{{ candidate.after.votes / count.quota | f2 }}</td>
                 </tr>
