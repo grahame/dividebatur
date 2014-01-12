@@ -48,6 +48,9 @@ class Candidates:
     def lookup_name_party(self, surname, given_name, party):
         return self.by_name_party[(surname, given_name, party)]
 
+    def get_parties(self):
+        return dict((t.PartyAb, t.PartyNm) for t in self.candidates if t)
+
 class SenateATL:
     def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
         self.gvt = {}
@@ -148,6 +151,7 @@ def senate_count(fname, state_name, vacancies, data_dir, automation, **kwargs):
         fname,
         vacancies,
         tickets_for_count,
+        candidates.get_parties(),
         atl.get_candidate_ids(),
         lambda candidate_id: atl.get_candidate_order(candidate_id),
         lambda candidate_id: atl.get_candidate_title(candidate_id),

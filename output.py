@@ -78,6 +78,7 @@ class HtmlOutput:
     def render(self, counter, template_vars):
         obj = {
             'candidates' : counter.candidate_json(),
+            'parties' : counter.party_json(),
             'total_papers': counter.total_papers,
             'quota': counter.quota,
             'vacancies': counter.vacancies,

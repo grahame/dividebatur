@@ -217,11 +217,11 @@ class CandidateAggregates:
         return self.gain_loss_votes
 
 class SenateCounter:
-    def __init__(self, fname, vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, **template_vars):
+    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, **template_vars):
         self.output = HtmlOutput(fname)
         self.automated_responses = automated_responses
-        self.vacancies, self.papers_for_count, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party = \
-            vacancies, papers_for_count, candidate_ids, candidate_order, candidate_title, candidate_party
+        self.vacancies, self.papers_for_count, self.parties, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party = \
+            vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party
         self.next_automated = 0
         # senators elected; candidates excluded from the count; neither of these are
         # eligible to have papers distributed to them
@@ -242,6 +242,11 @@ class SenateCounter:
         self.output.set_summary(self.summary())
         # render to HTML
         self.output.render(self, template_vars)
+
+    def party_json(self):
+        return dict((party, {
+            'name' : self.parties[party],
+        }) for party in self.parties)
 
     def candidate_json(self):
         return dict((candidate_id, {
