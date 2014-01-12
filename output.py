@@ -1,4 +1,3 @@
-from jinja2 import Environment, FileSystemLoader
 import sys, datetime
 
 class LogEntry:
@@ -71,10 +70,6 @@ class HtmlOutput:
         self.summary = summary_info
 
     def render(self, counter, template_vars):
-        env = Environment(loader=FileSystemLoader('./templates/'))
-        env.filters['numberfmt'] = lambda v: '{:,d}'.format(v)
-        env.filters['f2'] = lambda v: '{:,.2f}'.format(v)
-        template = env.get_template('base.html')
         with open(self.fname, 'w') as fd:
             print(template.render(
                 log=self.log,

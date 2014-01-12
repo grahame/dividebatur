@@ -157,15 +157,22 @@ def senate_count(fname, state_name, vacancies, data_dir, automation, **kwargs):
 
 def main():
     def name_fname(f):
-        return hashlib.sha1(f.encode('utf8')).hexdigest()[:8] + '.html'
+        return hashlib.sha1(f.encode('utf8')).hexdigest()[:8]
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
     base_dir = os.path.dirname(os.path.abspath(config_file))
     with open(config_file) as fd:
         config = json.load(fd)
+    json_f = os.path.join(out_dir, 'count.json')
+    with open(json_f, 'w') as fd:
+        json.dump([{
+            'name' : count['name'],
+            'description' : count['description'],
+            'path' : name_fname(count['name'])}
+            for count in config['count']], fd)
     for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
-        outf = os.path.join(out_dir, name_fname(count['name']))
+        outf = os.path.join(out_dir, name_fname(count['name']) + '.json')
         print("counting %s -> %s" % (count['name'], outf))
         senate_count(
             outf, 
