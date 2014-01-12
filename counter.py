@@ -244,11 +244,11 @@ class SenateCounter:
         self.output.render(self, template_vars)
 
     def candidate_json(self):
-        return [{
+        return dict((candidate_id, {
             'title' : self.candidate_title(candidate_id),
             'party' : self.candidate_party(candidate_id),
             'id' : candidate_id
-        } for candidate_id in self.candidate_ids]
+        }) for candidate_id in self.candidate_ids)
 
     def input_or_automated(self, entry, qn):
         if self.next_automated < len(self.automated_responses):
@@ -394,7 +394,7 @@ class SenateCounter:
             transfer = excess_votes, float(transfer_value)
         round_log.add_elected(candidate_id, len(self.candidates_elected), transfer)
 
-    def exclude(self, round_log, candidate_id, next_to_min_votes, min_votes, next_titles):
+    def exclude(self, round_log, candidate_id, next_to_min_votes, min_votes, next_candidates):
         self.candidates_excluded.append(candidate_id)
         transfer_values = set()
         for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
@@ -405,7 +405,7 @@ class SenateCounter:
             margin = next_to_min_votes - min_votes
         round_log.set_excluded(
             candidate_id,
-            next_titles,
+            next_candidates,
             margin,
             [float(t) for t in reversed(sorted(transfer_values))])
 
@@ -415,7 +415,10 @@ class SenateCounter:
     def process_election(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
         round_log.set_action(
-            ("distribution", distributed_candidate_id, float(transfer_value)))
+            ("distribution", {
+                'candidate_id': distributed_candidate_id, 
+                'transfer_value': float(transfer_value)
+                }))
         total, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
             distributed_candidate_id,
             self.candidate_bundle_transactions.get(distributed_candidate_id),
@@ -427,7 +430,10 @@ class SenateCounter:
     def process_exclusion(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
         round_log.set_action(
-            ("exclusion", distributed_candidate_id, float(transfer_value)))
+            ("exclusion", {
+                'candidate_id': distributed_candidate_id,
+                'transfer_value': float(transfer_value)
+                }))
         bundles_to_distribute = []
         for bundle in self.candidate_bundle_transactions.get(distributed_candidate_id):
             if bundle.get_transfer_value() == transfer_value:
@@ -544,9 +550,10 @@ class SenateCounter:
                 candidates_for_exclusion.append(candidate_id)
 
         next_to_min_votes = None
+        candidates_next_excluded = None
         if len(candidates_for_exclusion) > 1:
             with LogEntry(round_log) as entry:
-                entry.log("\nMultiple candidates for exclusion holding %d votes:" % (min_votes))
+                entry.log("Multiple candidates for exclusion holding %d votes:" % (min_votes))
                 for candidate_id in candidates_for_exclusion:
                     entry.log("    %s" % self.candidate_title(candidate_id))
                 tie_breaker_round = self.find_tie_breaker(candidates_for_exclusion)
@@ -565,10 +572,7 @@ class SenateCounter:
                 next_to_min_votes = min(candidate_aggregates.get_vote_count(t) for t in candidate_ids if candidate_aggregates.get_vote_count(t) > min_votes)
                 candidates_next_excluded = [t for t in candidate_ids if candidate_aggregates.get_vote_count(t) == next_to_min_votes]
 
-        next_titles = None
-        if next_to_min_votes is not None:
-            next_titles = [self.candidate_title(t) for t in candidates_next_excluded]
-        self.exclude(round_log, excluded_candidate_id, next_to_min_votes, min_votes, next_titles)
+        self.exclude(round_log, excluded_candidate_id, next_to_min_votes, min_votes, candidates_next_excluded)
 
     def process_round(self, round_number, round_log):
         if round_number > 1:
