@@ -385,7 +385,7 @@ class SenateCounter:
             assert(transfer_value >= 0)
             self.election_distributions_pending.append((candidate_id, transfer_value))
             transfer = excess_votes, float(transfer_value)
-        round_log.add_elected(self.candidate_title(candidate_id), len(self.candidates_elected), transfer)
+        round_log.add_elected(candidate_id, len(self.candidates_elected), transfer)
 
     def exclude(self, round_log, candidate_id, next_to_min_votes, min_votes, next_titles):
         self.candidates_excluded.append(candidate_id)
@@ -397,7 +397,7 @@ class SenateCounter:
         if next_to_min_votes is not None:
             margin = next_to_min_votes - min_votes
         round_log.set_excluded(
-            self.candidate_title(candidate_id),
+            candidate_id,
             next_titles,
             margin,
             [float(t) for t in reversed(sorted(transfer_values))])
@@ -407,7 +407,8 @@ class SenateCounter:
 
     def process_election(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
-        round_log.set_action("Distribution of elected candidate %s at transfer value %g." % (self.candidate_title(distributed_candidate_id), transfer_value))
+        round_log.set_action(
+            ("distribution", distributed_candidate_id, float(transfer_value)))
         total, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
             distributed_candidate_id,
             self.candidate_bundle_transactions.get(distributed_candidate_id),
@@ -418,7 +419,8 @@ class SenateCounter:
 
     def process_exclusion(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
-        round_log.set_action("Exclusion of candidate %s: distribution of preferences with transfer value %g." % (self.candidate_title(distributed_candidate_id), transfer_value))
+        round_log.set_action(
+            ("exclusion", distributed_candidate_id, float(transfer_value)))
         bundles_to_distribute = []
         for bundle in self.candidate_bundle_transactions.get(distributed_candidate_id):
             if bundle.get_transfer_value() == transfer_value:
@@ -471,8 +473,7 @@ class SenateCounter:
         def agg(a):
             return {
                 'votes' : a.get_vote_count(candidate_id),
-                'papers' : a.get_paper_count(candidate_id),
-                'quotas' : a.get_vote_count(candidate_id) / self.quota
+                'papers' : a.get_paper_count(candidate_id)
             }
         def index_or_none(l, v):
             if v in l:
@@ -487,23 +488,24 @@ class SenateCounter:
             r['before'] = exloss(last_candidate_aggregates)
         for candidate_id in reversed(sorted(self.candidate_ids_display(candidate_aggregates), key=lambda x: candidate_aggregates.get_vote_count(x))):
             entry = {
-                'title' : self.candidate_title(candidate_id),
-                'party' : self.candidate_party(candidate_id),
+                'id' : candidate_id,
                 'after' : agg(candidate_aggregates),
-                'elected' : index_or_none(self.candidates_elected, candidate_id),
-                'excluded' : index_or_none(self.candidates_excluded, candidate_id),
             }
+            if candidate_id in self.candidates_elected:
+                entry['elected'] = self.candidates_elected.index(candidate_id) + 1
+            if candidate_id in self.candidates_excluded:
+                entry['elected'] = self.candidates_excluded.index(candidate_id) + 1                
             done = False
-            if entry['elected'] or entry['excluded']:
+            if entry.get('elected') or entry.get('excluded'):
                 if candidate_id not in affected and \
                         candidate_id not in (t[0] for t in self.exclusion_distributions_pending) and \
                         candidate_id not in (t[0] for t in self.election_distributions_pending):
                     done = True
-            entry['done'] = done
             if last_candidate_aggregates is not None:
                 entry['before'] = agg(last_candidate_aggregates)
                 entry['delta'] = dict((t, entry['after'][t] - entry['before'][t]) for t in entry['before'])
-            r['candidates'].append(entry)
+            if not done:
+                r['candidates'].append(entry)
         return r
 
     def find_tie_breaker(self, candidate_ids):
@@ -652,7 +654,7 @@ class SenateCounter:
             'excluded' : []
         }
         for idx, candidate_id in enumerate(self.candidates_elected):
-            r['elected'].append(self.candidate_title(candidate_id))
+            r['elected'].append(candidate_id)
         for idx, candidate_id in enumerate(self.candidates_excluded):
-            r['excluded'].append(self.candidate_title(candidate_id))
+            r['excluded'].append(candidate_id)
         return r
