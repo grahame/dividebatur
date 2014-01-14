@@ -1,6 +1,5 @@
 var divideBaturApp = angular.module('divideBaturApp', [
   'ngRoute',
-  'ui.bootstrap',
   'divideBaturControllers',
   'divideBaturFilters',
   'divideBaturDirectives'
