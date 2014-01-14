@@ -1,67 +1,63 @@
 <div class="container" id="content">
 
     <div class="row">
-        <h1>{{ count.name }} </h1>
+        <h1>{{ parameters.name }} </h1>
     </div>
+
+    <count-summary></count-summary>
 
     <div class="row">
-        <div>
-            <table class="table table-bordered">
-                <tbody>
-                    <tr>
-                        <th>Run</th>
-                        <td>{{ count.description }}</td>
-                    </tr>
-                    <tr>
-                        <th>Executed</th>
-                        <td>{{ count.dt }} using <a href="https://github.com/grahame/dividebatur">dividebatur</a></td>
-                    </tr>
-                    <tr>
-                        <th>House</th>
-                        <td>{{ count.house }} ({{ count.state }})</td>
-                    </tr>
-                    <tr>
-                        <th>Vacancies</th>
-                        <td>{{ count.vacancies | numberfmt }}</td>
-                    </tr>
-                    <tr>
-                        <th>Total papers</th>
-                        <td>{{ count.total_papers | numberfmt }}</td>
-                    </tr>
-                    <tr>
-                        <th>Quota for election</th>
-                        <td>{{ count.quota | numberfmt }}</td>
-                    </tr>
-                    <tr>
-                        <th>Rounds of counting</th>
-                        <td>{{ count.rounds.length | numberfmt }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
 
-    <div class="row" ng-repeat="round in count.rounds">
-
-        <h2>Round {{round.number|numberfmt}}</h2>
-
-        <p ng-if="round.action">
-            <p ng-if="round.action[0] == 'distribution'">
-                Distribution of elected candidate {{ count.candidates[round.action[1].candidate_id].title }} at transfer value {{ round.action[1].transfer_value | f2 }}
-            </p>
-            <p ng-if="round.action[0] == 'exclusion'">
-                Exclusion of candidate {{ count.candidates[round.action[1].candidate_id].title }}: distribution of papers with transfer value {{ round.action[1].transfer_value | f2 }}
-            </p>
-        </p>
+        <h2>Round 1</h2>
 
         <table class="table table-bordered">
-            <colgroup ng-if="!round.count.before">
+            <colgroup>
                 <col span="1" style="width: 70%;">
                 <col span="1" style="width: 10%;">
                 <col span="1" style="width: 10%;">
                 <col span="1" style="width: 10%;">
-                </colgroup>
-                <colgroup ng-if="round.count.before">
+            </colgroup>
+            <tbody>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Votes %</th>
+                    <th>Votes</th>
+                    <th>Quotas</th>
+                </tr>
+                <tr ng-repeat="state in first_round.count.candidates">
+                    <th>
+                        <candidate parties="parties" candidates="candidates" id="state.id"></candidate>
+                        <state-badges state="state"></state-badges>
+                    </th>
+                    <td>{{ state.after.votes * 100 / parameters.total_papers | f2 }}%</td>
+                    <td>{{ state.after.votes | numberfmt }}</td>
+                    <td>{{ state.after.votes / parameters.quota | f2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <count-notes round="first_round"></count-notes>
+        <candidate-excluded round="first_round" candidates="candidates" parties="parties"></candidate-excluded>
+        <candidate-elected round="first_round" candidates="candidates" parties="parties"></candidate-elected>
+    </div>
+
+    <div class="row" ng-repeat="round in later_rounds">
+
+        <h2>Round {{round.number|numberfmt}}</h2>
+
+        <p ng-if="round.distribution.type == 'election'">
+            Distribution of elected candidate 
+            <candidate parties="parties" candidates="candidates" id="round.distribution.candidate_id"></candidate>
+            at transfer value {{ round.distribution.transfer_value | f2 }}
+        </p>
+        <p ng-if="round.distribution.type == 'exclusion'">
+            Exclusion of candidate
+            <candidate parties="parties" candidates="candidates" id="round.distribution.candidate_id"></candidate>:
+            distribution of papers with transfer value {{ round.distribution.transfer_value | f2 }}
+        </p>
+
+        <table class="table table-bordered">
+            <colgroup>
                 <col span="1" style="width: 50%;">
                 <col span="1" style="width: 10%;">
                 <col span="1" style="width: 10%;">
@@ -70,7 +66,7 @@
                 <col span="1" style="width: 10%;">
             </colgroup>
             <tbody>
-                <tr ng-if="round.count.before">
+                <tr>
                     <th>Candidate</th>
                     <th>Δ&nbsp;Papers</th>
                     <th>Papers</th>
@@ -78,74 +74,35 @@
                     <th>Votes</th>
                     <th>Quotas</th>
                 </tr>
-                <tr ng-if="!round.count.before">
-                    <th>Candidate</th>
-                    <th>Votes %</th>
-                    <th>Votes</th>
-                    <th>Quotas</th>
-                </tr>
-                <tr ng-repeat="candidate in round.count.candidates">
+                <tr ng-repeat="state in round.count.candidates">
                     <th>
-                        <span class="badge" tooltip-placement="right" tooltip="{{ count.parties[count.candidates[candidate.id].party].name }}">{{ count.candidates[candidate.id].party }}</span>
-                        {{ count.candidates[candidate.id].title }}
-                        <span class="badge" ng-if="candidate.elected">{{candidate.elected}}</span>
-                        <span class="glyphicon glyphicon-remove-circle" ng-if="candidate.excluded"></span>
+                        <candidate parties="parties" candidates="candidates" id="state.id"></candidate>
+                        <state-badges state="state"></state-badges>
                     </th>
-                    <td ng-if="round.count.before">
-                        <span ng-if="candidate.delta.papers > 0">+{{ candidate.delta.papers | numberfmt }}</span>
-                        <span ng-if="candidate.delta.papers < 0">{{ candidate.delta.papers | numberfmt }}</span>
+                    <td>
+                        <span>{{ state.delta.papers | plus }}{{ state.delta.papers | numberfmt }}</span>
                     </td>
-                    <td ng-if="round.count.before">{{ candidate.after.papers | numberfmt }}</td>
-                    <td ng-if="round.count.before">
-                        <span ng-if="candidate.delta.votes > 0">+{{ candidate.delta.votes | numberfmt }}</span>
-                        <span ng-if="candidate.delta.votes < 0">{{ candidate.delta.votes | numberfmt }}</span>
+                    <td>{{ state.after.papers | numberfmt }}</td>
+                    <td>{{ state.after.votes | numberfmt }}</td>
+                    <td>
+                        <span>{{ state.delta.votes | plus }}{{ state.delta.votes | numberfmt }}</span>
                     </td>
-                    <td ng-if="!round.count.before">{{ candidate.after.votes * 100 / count.total_papers | f2 }}%</td>
-                    <td>{{ candidate.after.votes | numberfmt }}</td>
-                    <td>{{ candidate.after.votes / count.quota | f2 }}</td>
+                    <td>{{ state.after.votes / parameters.quota | f2 }}</td>
                 </tr>
             </tbody>
         </table>
-
-        <div ng-if="round.note">
-            <pre ng-repeat="post in round.note">{{ post }}</pre>
-        </div>
-
-        <div ng-if="round.excluded">
-            <p>{{ count.candidates[round.excluded.id].title }} excluded.</p>
-
-            <div ng-if="round.excluded.margin">
-            <p>
-                Nearest candidates (with margin of {{ round.excluded.margin | numberfmt }} votes):
-            </p>
-            <ul>
-                <li ng-repeat="candidate_id in round.excluded.next_candidates">{{ count.candidates[candidate_id].title }}</li>
-            </ul>
-            </div>
-
-            <p>
-                Papers will be distributed from {{ count.candidates[round.excluded.id].title }} in order:
-            </p>
-            <ul>
-                <li ng-repeat="transfer in round.excluded.transfers">Papers with transfer value {{ transfer | f2 }}</li>
-            </ul>
-        </div>
-
-        <div ng-repeat="election in round.elected">
-            <p>
-                {{ count.candidates[election.id].title }} elected #{{ election.pos }}.
-            </p>
-            <ul ng-if="election.transfer">
-                <li>{{ election.transfer.excess | numberfmt }} excess votes to be distributed at transfer value {{election.transfer.value | f2 }}</li>
-            </ul>
-        </div>
+        <count-notes round="round"></count-notes>
+        <candidate-excluded round="round" candidates="candidates" parties="parties"></candidate-excluded>
+        <candidate-elected round="round" candidates="candidates" parties="parties"></candidate-elected>
     </div>
 
     <div class="row">
         <h2>Elected Candidates</h2>
 
         <ol>
-            <li ng-repeat="id in count.summary.elected">{{ count.candidates[id].title }}</li>
+        <li ng-repeat="id in summary.elected">
+        <candidate parties="parties" candidates="candidates" id="id"></candidate>
+        </li>
         </ol>
     </div>
 
@@ -153,7 +110,7 @@
         <h2>Excluded Candidates</h2>
 
         <ol>
-            <li ng-repeat="id in count.summary.excluded">{{ count.candidates[id].title }}</li>
+            <li ng-repeat="id in summary.excluded"><candidate parties="parties" candidates="candidates" id="id"></candidate></li>
         </ol>
     </div>
 

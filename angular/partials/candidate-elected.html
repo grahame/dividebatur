@@ -1,0 +1,8 @@
+<div ng-repeat="election in round.elected">
+    <p>
+        <candidate parties="parties" candidates="candidates" id="election.id"></candidate> elected #{{ election.pos }}.
+    </p>
+    <ul ng-if="election.transfer">
+        <li>{{ election.transfer.excess | numberfmt }} excess votes to be distributed at transfer value {{election.transfer.value | f2 }}</li>
+    </ul>
+</div>

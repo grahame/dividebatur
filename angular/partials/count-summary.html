@@ -1,0 +1,37 @@
+
+    <div class="row">
+        <div>
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <th>Run</th>
+                        <td>{{ parameters.description }}</td>
+                    </tr>
+                    <tr>
+                        <th>Executed</th>
+                        <td>{{ parameters.dt }} using <a href="https://github.com/grahame/dividebatur">dividebatur</a></td>
+                    </tr>
+                    <tr>
+                        <th>House</th>
+                        <td>{{ parameters.house }} ({{ parameters.state }})</td>
+                    </tr>
+                    <tr>
+                        <th>Vacancies</th>
+                        <td>{{ parameters.vacancies | numberfmt }}</td>
+                    </tr>
+                    <tr>
+                        <th>Total papers</th>
+                        <td>{{ parameters.total_papers | numberfmt }}</td>
+                    </tr>
+                    <tr>
+                        <th>Quota for election</th>
+                        <td>{{ parameters.quota | numberfmt }}</td>
+                    </tr>
+                    <tr>
+                        <th>Rounds of counting</th>
+                        <td>{{ rounds.length | numberfmt }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>

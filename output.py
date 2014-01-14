@@ -22,7 +22,7 @@ class RoundLog(LogEntry):
         self.note = []
         self.elected = []
         self.excluded = None
-        self.action = None
+        self.distribution = None
         self.count = None
 
     def json(self):
@@ -31,15 +31,15 @@ class RoundLog(LogEntry):
             'note': self.note,
             'elected': self.elected,
             'excluded': self.excluded,
-            'action': self.action,
+            'distribution': self.distribution,
             'count' : self.count
         }
 
     def set_count(self, count):
         self.count = count
 
-    def set_action(self, action):
-        self.action = action
+    def set_distribution(self, distribution):
+        self.distribution = distribution
 
     def add_elected(self, candidate_id, pos, transfer):
         if transfer is not None:
@@ -76,17 +76,20 @@ class HtmlOutput:
         self.summary = summary_info
 
     def render(self, counter, template_vars):
-        obj = {
-            'candidates' : counter.candidate_json(),
-            'parties' : counter.party_json(),
+        params = {
             'total_papers': counter.total_papers,
             'quota': counter.quota,
             'vacancies': counter.vacancies,
-            'rounds' : [t.json() for t in self.rounds],
-            'summary' : self.summary,
             'dt' : datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         }
-        obj.update(template_vars)
+        params.update(template_vars)
+        obj = {
+            'candidates' : counter.candidate_json(),
+            'parties' : counter.party_json(),
+            'parameters' : params,
+            'rounds' : [t.json() for t in self.rounds],
+            'summary' : self.summary,
+        }
         with open(self.fname, 'w') as fd:
-            json.dump(obj, fd, sort_keys=True, indent=0)
+            json.dump(obj, fd)
 

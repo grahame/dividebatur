@@ -1,0 +1,20 @@
+<div ng-if="round.excluded">
+    <p><candidate parties="parties" candidates="candidates" id="round.excluded.id"></candidate> excluded.</p>
+
+    <div ng-if="round.excluded.margin">
+    <p>
+        Nearest candidates (with margin of {{ round.excluded.margin | numberfmt }} votes):
+    </p>
+    <ul>
+        <li ng-repeat="id in round.excluded.next_candidates"><candidate parties="parties" candidates="candidates" id="id"></candidate></li>
+    </ul>
+    </div>
+
+    <p>
+        Papers will be distributed from {{ count.candidates[round.excluded.id].title }} in order:
+    </p>
+    <ul>
+        <li ng-repeat="transfer in round.excluded.transfers">Papers with transfer value {{ transfer | f2 }}</li>
+    </ul>
+</div>
+

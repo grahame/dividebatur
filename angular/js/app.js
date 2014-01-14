@@ -3,6 +3,7 @@ var divideBaturApp = angular.module('divideBaturApp', [
   'ui.bootstrap',
   'divideBaturControllers',
   'divideBaturFilters',
+  'divideBaturDirectives'
 ]);
 
 divideBaturApp.config(['$routeProvider',
