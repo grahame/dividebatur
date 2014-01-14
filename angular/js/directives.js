@@ -53,6 +53,6 @@ angular.module('divideBaturDirectives', [])
         'candidates': '=',
         'parties' : '='
       },
-      template: '<span class="badge" tooltip-placement="right" tooltip="{{ parties[candidates[id].party].name }}">{{ candidates[id].party }}</span> {{ candidates[id].title }}'
+      templateUrl: 'partials/candidate.html'
     };
   });
