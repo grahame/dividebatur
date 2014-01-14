@@ -1,5 +1,5 @@
 import sys, itertools, json, fractions, os
-from output import HtmlOutput, RoundLog, LogEntry
+from output import JsonOutput, RoundLog, LogEntry
 
 class PreferenceFlow:
     """

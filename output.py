@@ -63,7 +63,7 @@ class RoundLog(LogEntry):
     def add_note(self, message):
         self.note.append(message)
 
-class HtmlOutput:
+class JsonOutput:
     def __init__(self, fname):
         self.rounds = []
         self.fname = fname
