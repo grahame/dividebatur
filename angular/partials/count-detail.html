@@ -1,12 +1,12 @@
 <div class="container" id="content">
 
-    <div class="row">
+    <div class="row" ng-cloak>
         <h1>{{ parameters.name }} </h1>
     </div>
 
-    <count-summary></count-summary>
+    <count-summary ng-cloak></count-summary>
 
-    <div class="row">
+    <div class="row" ng-cloak>
 
         <h2>Round 1</h2>
 
@@ -41,7 +41,7 @@
         <candidate-elected round="first_round" candidates="candidates" parties="parties"></candidate-elected>
     </div>
 
-    <div class="row" ng-repeat="round in later_rounds">
+    <div class="row" ng-repeat="round in later_rounds" ng-cloak>
 
         <h2>Round {{round.number|numberfmt}}</h2>
 
