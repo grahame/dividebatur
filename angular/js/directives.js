@@ -5,6 +5,12 @@ angular.module('divideBaturDirectives', [])
       templateUrl: 'partials/count-summary.html'
     }
   })
+  .directive('countOutcomes', function() {
+    return {
+      'restrict': 'E',
+      templateUrl: 'partials/count-outcomes.html'
+    }
+  })
   .directive('candidateExcluded', function() {
     return {
       'restrict': 'E',

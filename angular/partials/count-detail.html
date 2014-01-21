@@ -6,9 +6,11 @@
 
     <count-summary ng-cloak></count-summary>
 
+    <count-outcomes></count-outcomes>
+
     <div class="row" ng-cloak>
 
-        <h2>Round 1</h2>
+        <h2>Counting round 1</h2>
 
         <table class="table table-bordered">
             <colgroup>
@@ -43,7 +45,7 @@
 
     <div class="row" ng-repeat="round in later_rounds" ng-cloak>
 
-        <h2>Round {{round.number|numberfmt}}</h2>
+        <h2>Counting round {{round.number|numberfmt}}</h2>
 
         <p ng-if="round.distribution.type == 'election'">
             Distribution of elected candidate 
@@ -94,24 +96,6 @@
         <count-notes round="round"></count-notes>
         <candidate-excluded round="round" candidates="candidates" parties="parties"></candidate-excluded>
         <candidate-elected round="round" candidates="candidates" parties="parties"></candidate-elected>
-    </div>
-
-    <div class="row">
-        <h2>Elected Candidates</h2>
-
-        <ol>
-        <li ng-repeat="id in summary.elected">
-        <candidate parties="parties" candidates="candidates" id="id"></candidate>
-        </li>
-        </ol>
-    </div>
-
-    <div class="row">
-        <h2>Excluded Candidates</h2>
-
-        <ol>
-            <li ng-repeat="id in summary.excluded"><candidate parties="parties" candidates="candidates" id="id"></candidate></li>
-        </ol>
     </div>
 
 </div>
