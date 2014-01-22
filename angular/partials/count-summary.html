@@ -32,7 +32,8 @@
                 </tr>
                 <tr>
                     <th>Rounds of counting</th>
-                    <td>{{ rounds | numberfmt }}</td>
+                    <td>{{ rounds | numberfmt }} (<a href="#/count/{{shortname}}/round/1">first round</a>, 
+                    <a href="#/count/{{shortname}}/round/{{rounds}}">last round</a>)</td>
                 </tr>
             </tbody>
         </table>

@@ -1,0 +1,126 @@
+<div class="container" id="content">
+
+    <div class="row">
+        <h1>{{ parameters.name }}, Round {{ round.number }}</h1>
+
+        <div class="btn-toolbar" role="toolbar">
+            <div class="btn-group">
+              <button type="button" ng-disabled="first_round" ng-click="firstRound()" class="btn btn-default">First round</button>
+              <button type="button" ng-disabled="first_round" ng-click="previousRound()" class="btn btn-default"><span class="glyphicon glyphicon-circle-arrow-left"></span> Previous</button>
+              <button type="button" ng-disabled="last_round" ng-click="nextRound()" class="btn btn-default"><span class="glyphicon glyphicon-circle-arrow-right"></span> Next</button>
+              <button type="button" ng-disabled="last_round" ng-click="lastRound()" class="btn btn-default">Last round</button>
+            </div>
+            <div class="btn-group">
+              <button type="button" ng-disabled="first_round" ng-click="overview()" class="btn btn-default">Overview</button>
+          </div>
+        </div>
+
+        <div ng-if="round.number == 1">
+
+            <h3>Initial Allocation</h3>
+
+            <p>
+                Initial distribution of papers to candidates, based on first preferences. Totals include above the line 
+                and below the line votes.
+            </p>
+
+            <h3>Outcomes</h3>
+
+            <count-notes round="round"></count-notes>
+            <candidate-excluded round="round" candidates="candidates" parties="parties"></candidate-excluded>
+            <candidate-elected round="round" candidates="candidates" parties="parties"></candidate-elected>
+
+            <h3>Candidate totals after round</h3>
+
+            <table class="table table-bordered">
+                <colgroup>
+                <col span="1" style="width: 70%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+            </colgroup>
+            <tbody>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Votes %</th>
+                    <th>Votes</th>
+                    <th>Quotas</th>
+                </tr>
+                <tr ng-repeat="state in round.count.candidates">
+                    <th>
+                        <candidate parties="parties" candidates="candidates" id="state.id"></candidate>
+                        <state-badges state="state"></state-badges>
+                    </th>
+                    <td>{{ state.after.votes * 100 / parameters.total_papers | f2 }}%</td>
+                    <td>{{ state.after.votes | numberfmt }}</td>
+                    <td>{{ state.after.votes / parameters.quota | f2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        </div>
+
+        <div ng-if="round.number != 1">
+            <h3>Distributions</h3>
+
+            <p ng-if="round.distribution.type == 'election'">
+                Distribution of elected candidate 
+                <candidate parties="parties" candidates="candidates" id="round.distribution.candidate_id"></candidate>
+                at transfer value {{ round.distribution.transfer_value | f2 }}
+            </p>
+            <p ng-if="round.distribution.type == 'exclusion'">
+                Exclusion of candidate
+                <candidate parties="parties" candidates="candidates" id="round.distribution.candidate_id"></candidate>:
+                distribution of papers with transfer value {{ round.distribution.transfer_value | f2 }}
+            </p>
+
+            <h3>Outcomes</h3>
+
+            <p ng-if="no_outcomes">
+            No outcomes in this round.
+            </p>
+
+            <count-notes round="round"></count-notes>
+            <candidate-excluded round="round" candidates="candidates" parties="parties"></candidate-excluded>
+            <candidate-elected round="round" candidates="candidates" parties="parties"></candidate-elected>
+
+            <h3>Candidate totals after round</h3>
+
+            <table class="table table-bordered">
+                <colgroup>
+                <col span="1" style="width: 50%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+                <col span="1" style="width: 10%;">
+            </colgroup>
+            <tbody>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Δ&nbsp;Papers</th>
+                    <th>Papers</th>
+                    <th>Δ&nbsp;Votes</th>
+                    <th>Votes</th>
+                    <th>Quotas</th>
+                </tr>
+                <tr ng-repeat="state in round.count.candidates">
+                    <th>
+                        <candidate parties="parties" candidates="candidates" id="state.id"></candidate>
+                        <state-badges state="state"></state-badges>
+                    </th>
+                    <td>
+                        <span>{{ state.delta.papers | plus }}{{ state.delta.papers | numberfmt }}</span>
+                    </td>
+                    <td>{{ state.after.papers | numberfmt }}</td>
+                    <td>{{ state.after.votes | numberfmt }}</td>
+                    <td>
+                        <span>{{ state.delta.votes | plus }}{{ state.delta.votes | numberfmt }}</span>
+                    </td>
+                    <td>{{ state.after.votes / parameters.quota | f2 }}</td>
+                </tr>
+            </tbody>
+            </table>
+        </div>
+    </div>
+</div>
