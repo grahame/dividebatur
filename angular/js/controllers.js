@@ -66,7 +66,7 @@ divideBatur.controller('CountRoundDetailCtrl', ['$scope', '$routeParams', '$docu
         go_round(data.rounds.length);
       }
       $scope.overview = function() {
-        $location.path("/count/" + $routeParams.countId);
+        $location.path("/scenario/" + $routeParams.countId);
       }
   });
 }]);
