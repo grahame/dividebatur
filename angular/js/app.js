@@ -12,11 +12,11 @@ divideBaturApp.config(['$routeProvider',
       when('/index', {
         templateUrl: 'partials/count-list.html'
       }).
-      when('/count/:countId', {
+      when('/scenario/:countId', {
         templateUrl: 'partials/count-detail.html',
         controller: 'CountDetailCtrl'
       }).
-      when('/count/:countId/round/:round', {
+      when('/scenario/:countId/count/:round', {
         templateUrl: 'partials/count-round-detail.html',
         controller: 'CountRoundDetailCtrl'
       }).

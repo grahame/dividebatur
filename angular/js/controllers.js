@@ -50,7 +50,7 @@ divideBatur.controller('CountRoundDetailCtrl', ['$scope', '$routeParams', '$docu
       // });
 
       var go_round = function(n) {
-        $location.path("/count/" + $routeParams.countId + "/round/" + n);        
+        $location.path("/scenario/" + $routeParams.countId + "/count/" + n);        
       }
 
       $scope.previousRound = function() {
