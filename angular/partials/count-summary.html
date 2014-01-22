@@ -31,9 +31,13 @@
                     <td>{{ parameters.quota | numberfmt }}</td>
                 </tr>
                 <tr>
-                    <th>Rounds of counting</th>
-                    <td>{{ rounds | numberfmt }} (<a href="#/count/{{shortname}}/round/1">first round</a>, 
-                    <a href="#/count/{{shortname}}/round/{{rounds}}">last round</a>)</td>
+                    <th>Counts required</th>
+                    <td>{{ rounds | numberfmt }} (<a href="#/count/{{shortname}}/round/1">first count</a>, 
+                    <a href="#/count/{{shortname}}/round/{{rounds}}">last count</a>)</td>
+                </tr>
+                <tr>
+                    <th>Count data (JSON)</th>
+                    <td><a href="{{data_link}}">{{data_link}}</a></td>
                 </tr>
             </tbody>
         </table>

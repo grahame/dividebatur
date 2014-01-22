@@ -56,9 +56,10 @@ angular.module('divideBaturDirectives', [])
       'restrict': 'E',
       scope: {
         'round': '=',
-        'shortname' : '='
+        'shortname' : '=',
+        'desc' : '='
       },
-      template: '<a href="#/count/{{shortname}}/round/{{round}}">round {{round}}</a>',
+      template: '<a href="#/count/{{shortname}}/round/{{round}}">{{desc}} {{round}}</a>',
     }
   })
   .directive('candidate', function() {

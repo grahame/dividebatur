@@ -20,11 +20,12 @@ divideBatur.controller('CountDetailCtrl', ['$scope', '$routeParams', '$http', '$
       $scope.rounds = data.rounds.length;
       $scope.parameters = data.parameters;
       $scope.parties = data.parties;
+      $scope.data_link = countData.dataPath($scope.shortname);
     });
 }]);
 
-divideBatur.controller('CountRoundDetailCtrl', ['$scope', '$routeParams', '$http', '$timeout', '$location', 'countData',
-  function($scope, $routeParams, $http, $timeout, $location, countData) {
+divideBatur.controller('CountRoundDetailCtrl', ['$scope', '$routeParams', '$document', '$http', '$timeout', '$location', 'countData',
+  function($scope, $routeParams, $document, $http, $timeout, $location, countData) {
 
     countData.getCount($routeParams.countId, function(data) {
       $scope.round = data.rounds[$routeParams.round - 1];
@@ -35,6 +36,18 @@ divideBatur.controller('CountRoundDetailCtrl', ['$scope', '$routeParams', '$http
       $scope.first_round = $scope.round.number == 1;
       $scope.last_round = $scope.round.number == data.rounds.length;
       $scope.no_outcomes = ($scope.round.elected.length == 0) && (!$scope.round.excluded) && ($scope.round.note.length == 0);
+
+      // this seems wrong, come back to it...
+      // $document.bind('keypress', function(event) {
+      //   console.log(event.charCode);
+      //   if (event.charCode == 106) { // j
+      //     $scope.nextRound();
+      //     $scope.$apply();
+      //   } else if (event.charCode == 107) {
+      //     $scope.previousRound();
+      //     $scope.$apply();
+      //   }
+      // });
 
       var go_round = function(n) {
         $location.path("/count/" + $routeParams.countId + "/round/" + n);        

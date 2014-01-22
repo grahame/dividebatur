@@ -1,11 +1,53 @@
 <div class="container">
 
-<div ng-repeat="count in counts">
+<h1>Introduction</h1>
+
 <p>
-    <strong><a href="#/count/{{ count.path }}">{{ count.name }}</a></strong>
+This site presents the details results for 
+<a href="https://en.wikipedia.org/wiki/Single_transferable_vote">Single Transferable Vote</a> elections
+to fill Australian Senate vacancies. All counts are shown. The particular variant of STV implemented is that specified under 
+the <a href="http://www.austlii.edu.au/au/legis/cth/consol_act/cea1918233/">Commonwealth Electoral Act (1918)</a>.
 </p>
+
 <p>
-    {{ count.description }}
+Both above-the-line and below-the-line votes are included in the count.
 </p>
+
+<p>
+The results presented on this site are believed to precisely match those produced by the 
+<a href="http://aec.gov.au">Australian Electoral Commission's</a> software.
+Where detailed run logs have been obtained from the AEC, the totals for each 
+candidate (and the number of exhausted/gain-loss votes) have matched at each 
+count, and the candidates elected and excluded have matched. If you spot 
+something incorrect, please <a href="mailto:grahame@angrygoats.net">get in touch</a>.
+</p>
+
+<p>
+This system was written out of curiosity, and to check whether the AEC's 
+results are reproducable. It also allows a full STV vote distribution for 
+hypothetical situations, which can be very useful – particuarly when West 
+Australian Senate elections go awry!
+</p>
+
+<p>
+This system is named <a href="github.com/grahame/dividebatur">dividebatur</a> 
+and is open source software distributed under the <a href="https://raw2.github.com/grahame/dividebatur/master/LICENSE">Apache License, 2.0</a>.
+</p>
+
+<h1>Counts</h1>
+
+<p>
+The following scenarios have been run for <strong>{{ house }} – {{ state }}</strong>.
+</p>
+
+<table class="table table-bordered">
+<tbody>
+<tr><th>Scenario</th><th>Description</th></tr>
+<tr ng-repeat="count in counts">
+<td><a href="#/count/{{ count.path }}">{{ count.name }}</a></td>
+<td>{{ count.description }}</td>
+</tr>
+</tbody>
+</table>
 
 </div>

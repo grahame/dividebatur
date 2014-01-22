@@ -403,17 +403,18 @@ class SenateCounter:
         round_log.add_elected(candidate_id, len(self.candidates_elected), transfer)
 
     def exclude(self, round_log, round_number, candidate_id, next_to_min_votes, min_votes, next_candidates):
+        margin = None
+        if next_to_min_votes is not None:
+            margin = next_to_min_votes - min_votes
         self.candidates_excluded[candidate_id] = {
             'order' : len(self.candidates_excluded) + 1,
-            'round' : round_number
+            'round' : round_number,
+            'margin' : margin or 0
         }
         transfer_values = set()
         for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
             transfer_values.add(bundle_transaction.get_transfer_value())
 
-        margin = None
-        if next_to_min_votes is not None:
-            margin = next_to_min_votes - min_votes
         round_log.set_excluded(
             candidate_id,
             next_candidates,
@@ -485,10 +486,17 @@ class SenateCounter:
                 json.dump(log, fd, sort_keys=True,
                     indent=4, separators=(',', ': '))
 
+    def candidate_election_order(self, candidate_id):
+        """only for use in sorting for output"""
+        if candidate_id not in self.candidates_elected:
+            return self.vacancies + 1
+        return self.candidates_elected[candidate_id]['order']
+
     def log_round_count(self, round_log, affected, last_candidate_aggregates, candidate_aggregates):
         def exloss(a):
             return {
-                'exhausted' : a.get_exhausted_papers(),
+                'exhausted_papers' : a.get_exhausted_papers(),
+                'exhausted_votes' : a.get_exhausted_votes(),
                 'gain_loss_papers' : a.get_gain_loss_papers(),
                 'gain_loss_votes' : a.get_gain_loss_votes(),
             }
@@ -505,7 +513,7 @@ class SenateCounter:
         if last_candidate_aggregates is not None:
             before = exloss(last_candidate_aggregates)
             r['delta'] = dict((t, r['after'][t] - before[t]) for t in before)
-        for candidate_id in reversed(sorted(self.candidate_ids_display(candidate_aggregates), key=lambda x: candidate_aggregates.get_vote_count(x))):
+        for candidate_id in reversed(sorted(self.candidate_ids_display(candidate_aggregates), key=lambda x: (candidate_aggregates.get_vote_count(x), self.vacancies - self.candidate_election_order(x)))):
             entry = {
                 'id' : candidate_id,
                 'after' : agg(candidate_aggregates),
@@ -515,7 +523,7 @@ class SenateCounter:
             if candidate_id in self.candidates_excluded:
                 entry['excluded'] = self.candidates_excluded[candidate_id]['order']
             done = False
-            if entry.get('elected') or entry.get('excluded'):
+            if entry.get('excluded'):
                 if candidate_id not in affected and \
                         candidate_id not in (t[0] for t in self.exclusion_distributions_pending) and \
                         candidate_id not in (t[0] for t in self.election_distributions_pending):
@@ -525,6 +533,10 @@ class SenateCounter:
                 entry['delta'] = dict((t, entry['after'][t] - before[t]) for t in before)
             if not done:
                 r['candidates'].append(entry)
+        r['total'] = {
+            'papers' : sum(t['after']['papers'] for t in r['candidates']) + r['after']['exhausted_papers'] + r['after']['gain_loss_papers'],
+            'votes' : sum(t['after']['votes'] for t in r['candidates']) + r['after']['exhausted_votes'] + r['after']['gain_loss_votes'],
+        }
         return r
 
     def find_tie_breaker(self, candidate_ids):

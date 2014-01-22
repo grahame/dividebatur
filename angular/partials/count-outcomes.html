@@ -1,19 +1,39 @@
 <div class="row">
     <h2>Elected Candidates</h2>
 
-    <ol>
-    <li ng-repeat="outcome in summary.elected">
-        <candidate parties="parties" candidates="candidates" id="outcome.id"></candidate> in <round-link shortname="shortname" round="outcome.round"></round-link>
-    </li>
-    </ol>
+    <table class="table table-bordered">
+    <tbody>
+        <tr>
+            <th>#</th>
+            <th>Candidate</th>
+            <th>Elected in count</th>
+        </tr>
+        <tr ng-repeat="outcome in summary.elected">
+            <td>{{outcome.order}}</td>
+            <td><candidate parties="parties" candidates="candidates" id="outcome.id"></candidate></td>
+            <td><round-link shortname="shortname" round="outcome.round" desc="'Count'"></round-link></td>
+        </tr>
+    </tbody>
+    </table>
 </div>
 
 <div class="row">
     <h2>Excluded Candidates</h2>
 
-    <ol>
-    <li ng-repeat="outcome in summary.excluded">
-        <candidate parties="parties" candidates="candidates" id="outcome.id"></candidate> in <round-link shortname="shortname" round="outcome.round"></round-link>
-    </li>
-    </ol>
+    <table class="table table-bordered">
+    <tbody>
+        <tr>
+            <th>#</th>
+            <th>Candidate</th>
+            <th>Excluded in count</th>
+            <th>Margin to next candidate</th>
+        </tr>
+        <tr ng-repeat="outcome in summary.excluded">
+            <td>{{outcome.order}}</td>
+            <td><candidate parties="parties" candidates="candidates" id="outcome.id"></candidate></td>
+            <td><round-link shortname="shortname" round="outcome.round" desc="'Count'"></round-link></td>
+            <td>{{ outcome.margin | numberfmt }}<span ng-if="outcome.margin==0">Tie</span></td>
+        </tr>
+    </tbody>
+    </table>
 </div>
