@@ -5,13 +5,13 @@
 
         <div class="btn-toolbar" role="toolbar">
             <div class="btn-group">
-              <button type="button" ng-disabled="first_round" ng-click="firstRound()" class="btn btn-default">First count</button>
-              <button type="button" ng-disabled="first_round" ng-click="previousRound()" class="btn btn-default"><span class="glyphicon glyphicon-circle-arrow-left"></span> Previous</button>
-              <button type="button" ng-disabled="last_round" ng-click="nextRound()" class="btn btn-default"><span class="glyphicon glyphicon-circle-arrow-right"></span> Next</button>
-              <button type="button" ng-disabled="last_round" ng-click="lastRound()" class="btn btn-default">Last count</button>
+              <a href="#/scenario/{{shortname}}/count/1" ng-disabled="first_round" class="btn btn-default">First count</a>
+              <a href="#/scenario/{{shortname}}/count/{{round.number-1}}" ng-disabled="first_round" class="btn btn-default"><span class="glyphicon glyphicon-circle-arrow-left"></span> Previous</a>
+              <a href="#/scenario/{{shortname}}/count/{{round.number+1}}" ng-disabled="last_round" class="btn btn-default"><span class="glyphicon glyphicon-circle-arrow-right"></span> Next</a>
+              <a href="#/scenario/{{shortname}}/count/{{rounds}}" ng-disabled="last_round" class="btn btn-default">Last count</a>
             </div>
             <div class="btn-group">
-              <button type="button" ng-click="overview()" class="btn btn-default">Overview</button>
+              <a href="#/scenario/{{shortname}}" class="btn btn-default">Overview</a>
           </div>
         </div>
 
