@@ -23,8 +23,9 @@ Creative Commons Attribution 3.0 Australia Licence (CC BY 3.0), and is
     http://aec.gov.au/footer/Copyright.htm
 
 ## Usage
-./tests.sh will run a count of the Fed2013 WA Senate count using data from the first count of ballots.
-The data for these tests is in the repository under fed2013\_wasenate1/data
+./run\_aec\_fed2013\_wa.sh will run a count of the Fed2013 WA Senate count 
+using data from the first count of ballots.  The data for these tests is in 
+the repository under fed2013\_wasenate1/data
 
 ./update.sh will pull down the data needed for a WA count from the AEC
 
