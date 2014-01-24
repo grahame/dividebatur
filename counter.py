@@ -217,11 +217,12 @@ class CandidateAggregates:
         return self.gain_loss_votes
 
 class SenateCounter:
-    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, **template_vars):
+    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, test_log_dir, **template_vars):
         self.output = JsonOutput(fname)
         self.automated_responses = automated_responses
         self.vacancies, self.papers_for_count, self.parties, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party = \
             vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party
+        self.test_log_dir = test_log_dir
         self.next_automated = 0
         # senators elected; candidates excluded from the count; neither of these are
         # eligible to have papers distributed to them
@@ -477,14 +478,14 @@ class SenateCounter:
         return sorted(candidate_aggregates.get_candidate_votes(), key=self.candidate_order)
 
     def json_log(self, round_number, candidate_aggregates):
+        if self.test_log_dir is None:
+            return
         log = []
         for candidate_id in self.candidate_ids_display(candidate_aggregates):
             log.append((self.candidate_title(candidate_id), candidate_aggregates.get_vote_count(candidate_id)))
-        # naff, FIXME
-        if os.access("./log/", os.W_OK):
-            with open('log/round_%d.json' % (round_number), 'w') as fd:
-                json.dump(log, fd, sort_keys=True,
-                    indent=4, separators=(',', ': '))
+        with open(os.path.join(self.test_log_dir, 'round_%d.json' % (round_number)), 'w') as fd:
+            json.dump(log, fd, sort_keys=True,
+                indent=4, separators=(',', ': '))
 
     def candidate_election_order(self, candidate_id):
         """only for use in sorting for output"""

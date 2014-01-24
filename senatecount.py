@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, os, csv, itertools, pickle, lzma, json, hashlib
+import sys, os, csv, itertools, pickle, lzma, json, hashlib, tempfile, difflib, re
+from pprint import pprint, pformat
 from collections import namedtuple
 from counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
 
@@ -134,7 +135,7 @@ class SenateBTL:
         for ticket in sorted(self.ticket_votes, key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
 
-def senate_count(fname, state_name, vacancies, data_dir, automation, **kwargs):
+def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
     def load_tickets(ticket_obj):
         if ticket_obj is None:
             return
@@ -156,9 +157,33 @@ def senate_count(fname, state_name, vacancies, data_dir, automation, **kwargs):
         lambda candidate_id: atl.get_candidate_order(candidate_id),
         lambda candidate_id: atl.get_candidate_title(candidate_id),
         lambda candidate_id: candidates.lookup_id(candidate_id).PartyAb,
-        automation,
+        *args, 
         **kwargs)
 
+def verify_test_logs(verified_dir, test_log_dir):
+    test_re = re.compile(r'^round_(\d+)\.json')
+    rounds = []
+    for fname in os.listdir(verified_dir):
+        m = test_re.match(fname)
+        if m:
+            rounds.append(int(m.groups()[0]))
+    def getlog(d, r):
+        with open(os.path.join(d, 'round_%d.json' % r)) as fd:
+            return json.load(fd)
+    for idx in sorted(rounds):
+        v = getlog(verified_dir, idx)
+        t = getlog(test_log_dir, idx)
+        if v != t:
+            print("Round %d: FAIL" % idx)
+            print("Log should be:")
+            pprint(v)
+            print("Log is:")
+            pprint(t)
+            print("Diff:")
+            print('\n'.join(difflib.unified_diff(pformat(v).split('\n'), pformat(t).split('\n'))))
+
+        else:
+            print("Round %d: OK" % idx)
 def main():
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
@@ -179,16 +204,22 @@ def main():
         json.dump(obj, fd)
     for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
+        test_log_dir = None
+        if 'verified' in count:
+            test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
         outf = os.path.join(out_dir, count['shortname'] + '.json')
         print("counting %s -> %s" % (count['name'], outf))
         senate_count(
             outf, 
             config['state'], config['vacancies'], data_dir,
             count.get('automation') or [],
+            test_log_dir,
             name=count.get('name'),
             description=count.get('description'),
             house=config['house'],
             state=config['state'])
+        if test_log_dir is not None:
+            verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir)
 
 if __name__ == '__main__':
     main()
