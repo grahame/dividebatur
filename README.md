@@ -1,5 +1,10 @@
 dividebatur: process single-transferable-vote elections as used for the Australian Senate under the Commonwealth Electoral Act (1918)
 
+For a high level overview of what this does, check this 
+blog post:
+
+http://blog.angrygoats.net/2014/01/25/counting-the-west-australian-senate-election/
+
 ## License
 
 Copyright 2013 Grahame Bowland
