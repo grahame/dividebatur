@@ -167,9 +167,12 @@ def verify_test_logs(verified_dir, test_log_dir):
         m = test_re.match(fname)
         if m:
             rounds.append(int(m.groups()[0]))
+    def fname(d, r):
+        return os.path.join(d, 'round_%d.json' % r)
     def getlog(d, r):
-        with open(os.path.join(d, 'round_%d.json' % r)) as fd:
+        with open(fname(d, r)) as fd:
             return json.load(fd)
+    ok = True
     for idx in sorted(rounds):
         v = getlog(verified_dir, idx)
         t = getlog(test_log_dir, idx)
@@ -181,9 +184,15 @@ def verify_test_logs(verified_dir, test_log_dir):
             pprint(t)
             print("Diff:")
             print('\n'.join(difflib.unified_diff(pformat(v).split('\n'), pformat(t).split('\n'))))
-
+            ok = False
         else:
             print("Round %d: OK" % idx)
+    if ok:
+        for fname in os.listdir(test_log_dir):
+            if test_re.match(fname):
+                os.unlink(os.path.join(test_log_dir, fname))
+        os.rmdir(test_log_dir)
+
 def main():
     config_file = sys.argv[1]
     out_dir = sys.argv[2]

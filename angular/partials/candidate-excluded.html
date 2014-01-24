@@ -1,5 +1,7 @@
 <div ng-if="round.excluded">
-    <p><candidate parties="parties" candidates="candidates" id="round.excluded.id"></candidate> excluded.</p>
+    <p>
+        <span class="glyphicon glyphicon-thumbs-down"></span> <candidate parties="parties" candidates="candidates" id="round.excluded.id"></candidate> excluded.
+    </p>
 
     <div ng-if="round.excluded.margin">
     <p>
