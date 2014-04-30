@@ -192,6 +192,7 @@ def verify_test_logs(verified_dir, test_log_dir):
             if test_re.match(fname):
                 os.unlink(os.path.join(test_log_dir, fname))
         os.rmdir(test_log_dir)
+    return ok
 
 def main():
     config_file = sys.argv[1]
@@ -211,6 +212,8 @@ def main():
             'path' : count['shortname']}
             for count in config['count']]
         json.dump(obj, fd)
+
+    test_logs_okay = True
     for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
         test_log_dir = None
@@ -228,7 +231,11 @@ def main():
             house=config['house'],
             state=config['state'])
         if test_log_dir is not None:
-            verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir)
+            if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
+                test_logs_okay = False
+    if not test_logs_okay:
+        print("** TESTS FAILED **")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

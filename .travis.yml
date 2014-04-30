@@ -3,4 +3,6 @@ python:
   - "3.4"
 # command to run tests, e.g. python setup.py test
 script: bash run_aec_fed2013_wa.sh
-
+notifications:
+  email:
+    - grahame@angrygoats.net
