@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, os, csv, itertools, pickle, lzma, json, hashlib, tempfile, difflib, re
+import sys, os, csv, itertools, pickle, lzma, json, hashlib, tempfile, difflib, re, glob
 from pprint import pprint, pformat
 from collections import namedtuple
 from counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
@@ -141,10 +141,10 @@ def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
             return
         for ticket, n in ticket_obj.get_tickets():
             tickets_for_count.add_ticket(ticket, n)
-    df = lambda x: os.path.join(data_dir, x)
-    candidates = Candidates(df('SenateCandidatesDownload-17496.csv.xz'))
-    atl = SenateATL(state_name, candidates, df('wa-gvt.csv.xz'), df('SenateFirstPrefsByStateByVoteTypeDownload-17496.csv.xz'))
-    btl = SenateBTL(candidates, df('SenateStateBTLPreferences-17496-WA.csv.xz'))
+    df = lambda x: glob.glob(os.path.join(data_dir, x))[0]
+    candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
+    atl = SenateATL(state_name, candidates, df('wa-gvt.csv.xz'), df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
+    btl = SenateBTL(candidates, df('SenateStateBTLPreferences-*-WA.csv.xz'))
     tickets_for_count = PapersForCount()
     load_tickets(atl)
     load_tickets(btl)
