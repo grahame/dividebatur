@@ -5,6 +5,9 @@ blog post:
 
 http://blog.angrygoats.net/2014/01/25/counting-the-west-australian-senate-election/
 
+## Build status
+[![Build Status](https://travis-ci.org/grahame/dividebatur.svg?branch=master)](https://travis-ci.org/grahame/dividebatur)
+
 ## License
 
 Copyright 2013 Grahame Bowland
