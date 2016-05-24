@@ -1,12 +1,23 @@
 #!/usr/bin/env python3
 
-import sys, os, csv, itertools, pickle, lzma, json, hashlib, tempfile, difflib, re, glob
+import sys
+import os
+import csv
+import itertools
+import lzma
+import json
+import tempfile
+import difflib
+import re
+import glob
 from pprint import pprint, pformat
 from collections import namedtuple
 from counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
 
+
 def named_tuple_iter(name, reader, header, **kwargs):
-    field_names = [ t for t in [t.strip().replace('-', '_') for t in header] if t ]
+    field_names = [t for t in [t.strip().replace('-', '_')
+                               for t in header] if t]
     typ = namedtuple(name, field_names)
     mappings = []
     for field_name in kwargs:
@@ -17,13 +28,16 @@ def named_tuple_iter(name, reader, header, **kwargs):
             row[idx] = map_fn(row[idx])
         yield typ(*row)
 
+
 def int_or_none(s):
     try:
         return int(s)
     except ValueError:
         return None
 
+
 class Candidates:
+
     def __init__(self, candidates_csv):
         self.by_id = {}
         self.by_name_party = {}
@@ -33,9 +47,10 @@ class Candidates:
     def load(self, candidates_csv):
         with lzma.open(candidates_csv, 'rt') as fd:
             reader = csv.reader(fd)
-            version = next(reader)
+            next(reader)  # skip the version
             header = next(reader)
-            for candidate in named_tuple_iter('Candidate', reader, header, CandidateID=int):
+            for candidate in named_tuple_iter(
+                    'Candidate', reader, header, CandidateID=int):
                 self.candidates.append(candidate)
                 assert(candidate.CandidateID not in self.by_id)
                 self.by_id[candidate.CandidateID] = candidate
@@ -52,11 +67,13 @@ class Candidates:
     def get_parties(self):
         return dict((t.PartyAb, t.PartyNm) for t in self.candidates if t)
 
+
 class SenateATL:
+
     def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
         self.gvt = {}
         self.ticket_votes = []
-        self.individual_candidate_ids =[]
+        self.individual_candidate_ids = []
         self.candidate_order = {}
         self.candidate_title = {}
         self.btl_firstprefs = {}
@@ -67,12 +84,27 @@ class SenateATL:
         with lzma.open(gvt_csv, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
-            it = sorted(named_tuple_iter('GvtRow', reader, header, Preference=int, TicketNo=int, Ticket=lambda t: t.strip()), key=lambda gvt: (gvt.StateAb, gvt.Ticket, gvt.TicketNo, gvt.Preference))
-            for (state_ab, ticket, ticket_no), g in itertools.groupby(it, lambda gvt: (gvt.StateAb, gvt.Ticket, gvt.TicketNo)):
+            it = sorted(
+                named_tuple_iter(
+                    'GvtRow',
+                    reader,
+                    header,
+                    Preference=int,
+                    TicketNo=int,
+                    Ticket=lambda t: t.strip()),
+                key=lambda gvt: (
+                    gvt.StateAb,
+                    gvt.Ticket,
+                    gvt.TicketNo,
+                    gvt.Preference))
+            for (state_ab, ticket, ticket_no), g in itertools.groupby(
+                    it, lambda gvt: (gvt.StateAb, gvt.Ticket, gvt.TicketNo)):
                 prefs = []
                 for ticket_entry in g:
-                    candidate = candidates.lookup_name_party(ticket_entry.Surname, ticket_entry.GivenName, ticket_entry.Party)
-                    prefs.append((ticket_entry.Preference, candidate.CandidateID))
+                    candidate = candidates.lookup_name_party(
+                        ticket_entry.Surname, ticket_entry.GivenName, ticket_entry.Party)
+                    prefs.append(
+                        (ticket_entry.Preference, candidate.CandidateID))
                 if ticket not in self.gvt:
                     self.gvt[ticket] = []
                 self.gvt[ticket].append(PreferenceFlow(tuple(prefs)))
@@ -80,9 +112,11 @@ class SenateATL:
     def load_first_preferences(self, state_name, firstprefs_csv):
         with lzma.open(firstprefs_csv, 'rt') as fd:
             reader = csv.reader(fd)
-            version = next(reader)
+            next(reader)  # skip the version
             header = next(reader)
-            for idx, row in enumerate(named_tuple_iter('StateFirstPrefs', reader, header, TotalVotes=int, CandidateID=int)):
+            for idx, row in enumerate(
+                named_tuple_iter(
+                    'StateFirstPrefs', reader, header, TotalVotes=int, CandidateID=int)):
                 if row.StateAb == state_name:
                     if row.CandidateDetails.endswith('Ticket Votes'):
                         self.ticket_votes.append((row.Ticket, row.TotalVotes))
@@ -106,6 +140,7 @@ class SenateATL:
     def get_candidate_title(self, candidate_id):
         return self.candidate_title[candidate_id]
 
+
 class SenateBTL:
     """
     build up Ticket instances for each below-the-line vote in the AEC dataset
@@ -119,9 +154,16 @@ class SenateBTL:
     def load_btl(self, candidates, btl_csv):
         with lzma.open(btl_csv, 'rt') as fd:
             reader = csv.reader(fd)
-            version = next(reader)
+            next(reader)  # skip the version
             header = next(reader)
-            it = named_tuple_iter('BtlRow', reader, header, Batch=int, Paper=int, Preference=int_or_none, CandidateId=int)
+            it = named_tuple_iter(
+                'BtlRow',
+                reader,
+                header,
+                Batch=int,
+                Paper=int,
+                Preference=int_or_none,
+                CandidateId=int)
             for key, g in itertools.groupby(it, lambda r: (r.Batch, r.Paper)):
                 ticket_data = []
                 for row in sorted(g, key=lambda x: x.CandidateId):
@@ -132,8 +174,11 @@ class SenateBTL:
                 self.ticket_votes[ticket] += 1
 
     def get_tickets(self):
-        for ticket in sorted(self.ticket_votes, key=lambda x: self.ticket_votes[x]):
+        for ticket in sorted(
+                self.ticket_votes,
+                key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
+
 
 def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
     def load_tickets(ticket_obj):
@@ -143,12 +188,13 @@ def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
             tickets_for_count.add_ticket(ticket, n)
     df = lambda x: glob.glob(os.path.join(data_dir, x))[0]
     candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
-    atl = SenateATL(state_name, candidates, df('wa-gvt.csv.xz'), df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
+    atl = SenateATL(state_name, candidates, df('wa-gvt.csv.xz'),
+                    df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
     btl = SenateBTL(candidates, df('SenateStateBTLPreferences-*-WA.csv.xz'))
     tickets_for_count = PapersForCount()
     load_tickets(atl)
     load_tickets(btl)
-    counter = SenateCounter(
+    SenateCounter(
         fname,
         vacancies,
         tickets_for_count,
@@ -157,8 +203,9 @@ def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
         lambda candidate_id: atl.get_candidate_order(candidate_id),
         lambda candidate_id: atl.get_candidate_title(candidate_id),
         lambda candidate_id: candidates.lookup_id(candidate_id).PartyAb,
-        *args, 
+        *args,
         **kwargs)
+
 
 def verify_test_logs(verified_dir, test_log_dir):
     test_re = re.compile(r'^round_(\d+)\.json')
@@ -167,8 +214,10 @@ def verify_test_logs(verified_dir, test_log_dir):
         m = test_re.match(fname)
         if m:
             rounds.append(int(m.groups()[0]))
+
     def fname(d, r):
         return os.path.join(d, 'round_%d.json' % r)
+
     def getlog(d, r):
         with open(fname(d, r)) as fd:
             return json.load(fd)
@@ -183,7 +232,11 @@ def verify_test_logs(verified_dir, test_log_dir):
             print("Log is:")
             pprint(t)
             print("Diff:")
-            print('\n'.join(difflib.unified_diff(pformat(v).split('\n'), pformat(t).split('\n'))))
+            print(
+                '\n'.join(
+                    difflib.unified_diff(
+                        pformat(v).split('\n'),
+                        pformat(t).split('\n'))))
             ok = False
         else:
             print("Round %d: OK" % idx)
@@ -193,6 +246,7 @@ def verify_test_logs(verified_dir, test_log_dir):
                 os.unlink(os.path.join(test_log_dir, fname))
         os.rmdir(test_log_dir)
     return ok
+
 
 def main():
     config_file = sys.argv[1]
@@ -204,12 +258,12 @@ def main():
     with open(json_f, 'w') as fd:
         obj = {
             'house': config['house'],
-            'state' : config['state']
+            'state': config['state']
         }
         obj['counts'] = [{
-            'name' : count['name'],
-            'description' : count['description'],
-            'path' : count['shortname']}
+            'name': count['name'],
+            'description': count['description'],
+            'path': count['shortname']}
             for count in config['count']]
         json.dump(obj, fd)
 
@@ -222,7 +276,7 @@ def main():
         outf = os.path.join(out_dir, count['shortname'] + '.json')
         print("counting %s -> %s" % (count['name'], outf))
         senate_count(
-            outf, 
+            outf,
             config['state'], config['vacancies'], data_dir,
             count.get('automation') or [],
             test_log_dir,
@@ -231,7 +285,11 @@ def main():
             house=config['house'],
             state=config['state'])
         if test_log_dir is not None:
-            if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
+            if not verify_test_logs(
+                    os.path.join(
+                        base_dir,
+                        count['verified']),
+                    test_log_dir):
                 test_logs_okay = False
     if not test_logs_okay:
         print("** TESTS FAILED **")
