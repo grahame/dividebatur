@@ -12,7 +12,7 @@ import re
 import glob
 from pprint import pprint, pformat
 from collections import namedtuple
-from counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
+from . counter import Ticket, PreferenceFlow, PapersForCount, SenateCounter
 
 
 def named_tuple_iter(name, reader, header, **kwargs):
@@ -77,6 +77,7 @@ class SenateATL:
         self.candidate_order = {}
         self.candidate_title = {}
         self.btl_firstprefs = {}
+        self.raw_ticket_data = []
         self.load_tickets(candidates, gvt_csv)
         self.load_first_preferences(state_name, firstprefs_csv)
 
@@ -105,6 +106,9 @@ class SenateATL:
                         ticket_entry.Surname, ticket_entry.GivenName, ticket_entry.Party)
                     prefs.append(
                         (ticket_entry.Preference, candidate.CandidateID))
+
+                non_none = [x for x in prefs if x[0] != None]
+                self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
                 if ticket not in self.gvt:
                     self.gvt[ticket] = []
                 self.gvt[ticket].append(PreferenceFlow(tuple(prefs)))
@@ -149,6 +153,7 @@ class SenateBTL:
 
     def __init__(self, candidates, btl_csv):
         self.ticket_votes = {}
+        self.raw_ticket_data = []
         self.load_btl(candidates, btl_csv)
 
     def load_btl(self, candidates, btl_csv):
@@ -164,10 +169,13 @@ class SenateBTL:
                 Paper=int,
                 Preference=int_or_none,
                 CandidateId=int)
+            self.total_ticket_data = []
             for key, g in itertools.groupby(it, lambda r: (r.Batch, r.Paper)):
                 ticket_data = []
                 for row in sorted(g, key=lambda x: x.CandidateId):
-                    ticket_data.append((row.Preference, row.CandidateId))
+                    ticket_data.append((row.Preference, row.CandidateId)) 
+                non_none = [x for x in ticket_data if x[0] != None]
+                self.raw_ticket_data.append( sorted(non_none, key=lambda x: x[0]) )   
                 ticket = Ticket((PreferenceFlow(ticket_data),))
                 if ticket not in self.ticket_votes:
                     self.ticket_votes[ticket] = 0
@@ -179,8 +187,11 @@ class SenateBTL:
                 key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
 
-
 def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
+    candidates,atl,btl,tickets_for_count = senate_count_setup(state_name,data_dir)
+    senate_count_run(fname,vacancies,tickets_for_count,candidates,atl,btl,*args,**kwargs)
+
+def senate_count_setup(state_name, data_dir):
     def load_tickets(ticket_obj):
         if ticket_obj is None:
             return
@@ -194,6 +205,9 @@ def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
     tickets_for_count = PapersForCount()
     load_tickets(atl)
     load_tickets(btl)
+    return (candidates,atl,btl,tickets_for_count)
+
+def senate_count_run(fname,vacancies,tickets_for_count,candidates,atl,btl,*args,**kwargs):
     SenateCounter(
         fname,
         vacancies,
@@ -248,7 +262,70 @@ def verify_test_logs(verified_dir, test_log_dir):
     return ok
 
 
-def main():
+
+def get_data(config_file,out_dir):
+    base_dir = os.path.dirname(os.path.abspath(config_file))
+    with open(config_file) as fd:
+        config = json.load(fd)
+    json_f = os.path.join(out_dir, 'count.json')
+    with open(json_f, 'w') as fd:
+        obj = {
+            'house': config['house'],
+            'state': config['state']
+        }
+        obj['counts'] = [{
+            'name': count['name'],
+            'description': count['description'],
+            'path': count['shortname']}
+            for count in config['count']]
+        json.dump(obj, fd)
+
+    senate_count_data = []
+    for i in range(len(config['count'])):
+        count = config['count'][i]
+        data_dir = os.path.join(base_dir, count['path'])
+        senate_count_data.append(senate_count_setup(config['state'], data_dir))
+    return senate_count_data
+
+def get_outcome(config_file,out_dir, senate_count_data):
+    base_dir = os.path.dirname(os.path.abspath(config_file))
+    with open(config_file) as fd:
+        config = json.load(fd)
+    test_logs_okay = True
+    for i in range(len(config['count'])):
+        count = config['count'][i]
+        sc_data = senate_count_data[i]
+        (candidates,atl,btl,tickets_for_count) = sc_data
+        data_dir = os.path.join(base_dir, count['path'])
+        test_log_dir = None
+        if 'verified' in count:
+            test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
+        outf = os.path.join(out_dir, count['shortname'] + '.json')
+        print("counting %s -> %s" % (count['name'], outf))
+        senate_count_run(
+            outf, config['vacancies'], tickets_for_count, candidates , atl, btl,
+            count.get('automation') or [],
+            test_log_dir,
+            name=count.get('name'),
+            description=count.get('description'),
+            house=config['house'],
+            state=config['state'])
+        if test_log_dir is not None:
+            if not verify_test_logs(
+                    os.path.join(
+                        base_dir,
+                        count['verified']),
+                    test_log_dir):
+                test_logs_okay = False
+    if not test_logs_okay:
+        print("** TESTS FAILED **")
+        sys.exit(1)
+
+def main_separate(config_file,out_dir):
+    sc_data = get_data(config_file,out_dir)    
+    get_outcome(config_file,out_dir,sc_data)
+
+def main(config_file,out_dir):
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
     base_dir = os.path.dirname(os.path.abspath(config_file))
@@ -296,4 +373,6 @@ def main():
         sys.exit(1)
 
 if __name__ == '__main__':
-    main()
+    config_file=sys.argv[1]
+    out_dir = sys.argv[2]
+    main(config_file=config_file,out_dir=out_dir)
