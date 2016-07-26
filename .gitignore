@@ -3,3 +3,10 @@ log/
 angular/data
 .DS_Store
 *.pyc
+.#*
+*.log
+*.swp
+*.swo
+*~
+*.html~
+*.js~
