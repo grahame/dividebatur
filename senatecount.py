@@ -37,7 +37,6 @@ def int_or_none(s):
 
 
 class Candidates:
-
     def __init__(self, candidates_csv):
         self.by_id = {}
         self.by_name_party = {}
@@ -69,7 +68,6 @@ class Candidates:
 
 
 class SenateATL:
-
     def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
         self.gvt = {}
         self.ticket_votes = []
@@ -335,49 +333,7 @@ def main_separate(config_file, out_dir):
 def main(config_file, out_dir):
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
-    base_dir = os.path.dirname(os.path.abspath(config_file))
-    with open(config_file) as fd:
-        config = json.load(fd)
-    json_f = os.path.join(out_dir, 'count.json')
-    with open(json_f, 'w') as fd:
-        obj = {
-            'house': config['house'],
-            'state': config['state']
-        }
-        obj['counts'] = [{
-            'name': count['name'],
-            'description': count['description'],
-            'path': count['shortname']}
-            for count in config['count']]
-        json.dump(obj, fd)
-
-    test_logs_okay = True
-    for count in config['count']:
-        data_dir = os.path.join(base_dir, count['path'])
-        test_log_dir = None
-        if 'verified' in count:
-            test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
-        outf = os.path.join(out_dir, count['shortname'] + '.json')
-        print("counting %s -> %s" % (count['name'], outf))
-        senate_count(
-            outf,
-            config['state'], config['vacancies'], data_dir,
-            count.get('automation') or [],
-            test_log_dir,
-            name=count.get('name'),
-            description=count.get('description'),
-            house=config['house'],
-            state=config['state'])
-        if test_log_dir is not None:
-            if not verify_test_logs(
-                    os.path.join(
-                        base_dir,
-                        count['verified']),
-                    test_log_dir):
-                test_logs_okay = False
-    if not test_logs_okay:
-        print("** TESTS FAILED **")
-        sys.exit(1)
+    main_separate(config_file, out_dir)
 
 if __name__ == '__main__':
     config_file = sys.argv[1]

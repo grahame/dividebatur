@@ -235,7 +235,6 @@ class CandidateAggregates:
 
 
 class SenateCounter:
-
     def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, test_log_dir, **template_vars):
         self.output = JsonOutput(fname)
         self.automated_responses = automated_responses
