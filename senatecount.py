@@ -107,7 +107,7 @@ class SenateATL:
                     prefs.append(
                         (ticket_entry.Preference, candidate.CandidateID))
 
-                non_none = [x for x in prefs if x[0] != None]
+                non_none = [x for x in prefs if x[0] is not None]
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
                 if ticket not in self.gvt:
                     self.gvt[ticket] = []
@@ -173,9 +173,9 @@ class SenateBTL:
             for key, g in itertools.groupby(it, lambda r: (r.Batch, r.Paper)):
                 ticket_data = []
                 for row in sorted(g, key=lambda x: x.CandidateId):
-                    ticket_data.append((row.Preference, row.CandidateId)) 
-                non_none = [x for x in ticket_data if x[0] != None]
-                self.raw_ticket_data.append( sorted(non_none, key=lambda x: x[0]) )   
+                    ticket_data.append((row.Preference, row.CandidateId))
+                non_none = [x for x in ticket_data if x[0] is not None]
+                self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
                 ticket = Ticket((PreferenceFlow(ticket_data),))
                 if ticket not in self.ticket_votes:
                     self.ticket_votes[ticket] = 0
@@ -187,9 +187,11 @@ class SenateBTL:
                 key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
 
+
 def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
-    candidates,atl,btl,tickets_for_count = senate_count_setup(state_name,data_dir)
-    senate_count_run(fname,vacancies,tickets_for_count,candidates,atl,btl,*args,**kwargs)
+    candidates, atl, btl, tickets_for_count = senate_count_setup(state_name, data_dir)
+    senate_count_run(fname, vacancies, tickets_for_count, candidates, atl, btl, *args, **kwargs)
+
 
 def senate_count_setup(state_name, data_dir):
     def load_tickets(ticket_obj):
@@ -197,7 +199,10 @@ def senate_count_setup(state_name, data_dir):
             return
         for ticket, n in ticket_obj.get_tickets():
             tickets_for_count.add_ticket(ticket, n)
-    df = lambda x: glob.glob(os.path.join(data_dir, x))[0]
+
+    def df(x):
+        return glob.glob(os.path.join(data_dir, x))[0]
+
     candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
     atl = SenateATL(state_name, candidates, df('wa-gvt.csv.xz'),
                     df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
@@ -205,9 +210,10 @@ def senate_count_setup(state_name, data_dir):
     tickets_for_count = PapersForCount()
     load_tickets(atl)
     load_tickets(btl)
-    return (candidates,atl,btl,tickets_for_count)
+    return (candidates, atl, btl, tickets_for_count)
 
-def senate_count_run(fname,vacancies,tickets_for_count,candidates,atl,btl,*args,**kwargs):
+
+def senate_count_run(fname, vacancies, tickets_for_count, candidates, atl, btl, *args, **kwargs):
     SenateCounter(
         fname,
         vacancies,
@@ -262,8 +268,7 @@ def verify_test_logs(verified_dir, test_log_dir):
     return ok
 
 
-
-def get_data(config_file,out_dir):
+def get_data(config_file, out_dir):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     with open(config_file) as fd:
         config = json.load(fd)
@@ -287,7 +292,8 @@ def get_data(config_file,out_dir):
         senate_count_data.append(senate_count_setup(config['state'], data_dir))
     return senate_count_data
 
-def get_outcome(config_file,out_dir, senate_count_data):
+
+def get_outcome(config_file, out_dir, senate_count_data):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     with open(config_file) as fd:
         config = json.load(fd)
@@ -295,15 +301,14 @@ def get_outcome(config_file,out_dir, senate_count_data):
     for i in range(len(config['count'])):
         count = config['count'][i]
         sc_data = senate_count_data[i]
-        (candidates,atl,btl,tickets_for_count) = sc_data
-        data_dir = os.path.join(base_dir, count['path'])
+        (candidates, atl, btl, tickets_for_count) = sc_data
         test_log_dir = None
         if 'verified' in count:
             test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
         outf = os.path.join(out_dir, count['shortname'] + '.json')
         print("counting %s -> %s" % (count['name'], outf))
         senate_count_run(
-            outf, config['vacancies'], tickets_for_count, candidates , atl, btl,
+            outf, config['vacancies'], tickets_for_count, candidates, atl, btl,
             count.get('automation') or [],
             test_log_dir,
             name=count.get('name'),
@@ -321,11 +326,13 @@ def get_outcome(config_file,out_dir, senate_count_data):
         print("** TESTS FAILED **")
         sys.exit(1)
 
-def main_separate(config_file,out_dir):
-    sc_data = get_data(config_file,out_dir)    
-    get_outcome(config_file,out_dir,sc_data)
 
-def main(config_file,out_dir):
+def main_separate(config_file, out_dir):
+    sc_data = get_data(config_file, out_dir)
+    get_outcome(config_file, out_dir, sc_data)
+
+
+def main(config_file, out_dir):
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
     base_dir = os.path.dirname(os.path.abspath(config_file))
@@ -373,6 +380,6 @@ def main(config_file,out_dir):
         sys.exit(1)
 
 if __name__ == '__main__':
-    config_file=sys.argv[1]
+    config_file = sys.argv[1]
     out_dir = sys.argv[2]
-    main(config_file=config_file,out_dir=out_dir)
+    main(config_file=config_file, out_dir=out_dir)

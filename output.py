@@ -1,6 +1,10 @@
-import sys, datetime, json
+import sys
+import datetime
+import json
+
 
 class LogEntry:
+
     def __init__(self, output):
         self.lines = []
         self.output_to = output
@@ -16,7 +20,9 @@ class LogEntry:
     def __exit__(self, type, value, tb):
         self.output_to.add_note('\n'.join(self.lines))
 
+
 class RoundLog(LogEntry):
+
     def __init__(self, number):
         self.number = number
         self.note = []
@@ -32,7 +38,7 @@ class RoundLog(LogEntry):
             'elected': self.elected,
             'excluded': self.excluded,
             'distribution': self.distribution,
-            'count' : self.count
+            'count': self.count
         }
 
     def set_count(self, count):
@@ -43,27 +49,29 @@ class RoundLog(LogEntry):
 
     def add_elected(self, candidate_id, pos, transfer):
         if transfer is not None:
-            t = { 'excess' : transfer[0], 'value' : transfer[1] }
+            t = {'excess': transfer[0], 'value': transfer[1]}
         else:
             t = None
         self.elected.append({
-            'id' : candidate_id,
-            'pos' : pos,
-            'transfer' : t
-            })
+            'id': candidate_id,
+            'pos': pos,
+            'transfer': t
+        })
 
     def set_excluded(self, candidate_id, next_candidates, margin, transfer_values):
         self.excluded = {
-            'id' : candidate_id,
-            'margin' : margin,
-            'next_candidates' : next_candidates,
-            'transfers' : transfer_values
-            }
+            'id': candidate_id,
+            'margin': margin,
+            'next_candidates': next_candidates,
+            'transfers': transfer_values
+        }
 
     def add_note(self, message):
         self.note.append(message)
 
+
 class JsonOutput:
+
     def __init__(self, fname):
         self.rounds = []
         self.fname = fname
@@ -80,16 +88,15 @@ class JsonOutput:
             'total_papers': counter.total_papers,
             'quota': counter.quota,
             'vacancies': counter.vacancies,
-            'dt' : datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            'dt': datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         }
         params.update(template_vars)
         obj = {
-            'candidates' : counter.candidate_json(),
-            'parties' : counter.party_json(),
-            'parameters' : params,
-            'rounds' : [t.json() for t in self.rounds],
-            'summary' : self.summary,
+            'candidates': counter.candidate_json(),
+            'parties': counter.party_json(),
+            'parameters': params,
+            'rounds': [t.json() for t in self.rounds],
+            'summary': self.summary,
         }
         with open(self.fname, 'w') as fd:
             json.dump(obj, fd)
-

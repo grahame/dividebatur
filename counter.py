@@ -1,11 +1,16 @@
-import sys, itertools, json, fractions, os
+import itertools
+import json
+import fractions
+import os
 from .output import JsonOutput, RoundLog, LogEntry
+
 
 class PreferenceFlow:
     """
-    a preference flow; describes a preference flow and maintains state for it 
+    a preference flow; describes a preference flow and maintains state for it
     during the count
     """
+
     def __init__(self, preferences):
         self.preferences = tuple(sorted(preferences, key=lambda x: x[1]))
         self.transfer_value = fractions.Fraction(1, 1)
@@ -32,7 +37,9 @@ class PreferenceFlow:
     def __repr__(self):
         return "<PreferenceFlow>"
 
+
 class Ticket:
+
     def __init__(self, preference_flows):
         self.preference_flows = preference_flows
         assert(isinstance(preference_flows, tuple))
@@ -54,10 +61,12 @@ class Ticket:
     def __repr__(self):
         return "<Ticket>"
 
+
 class PapersForCount:
     """
     defines the inital state of the count; eg. the tickets and the number of papers with that ticket
     """
+
     def __init__(self):
         self.papers = {}
 
@@ -70,11 +79,13 @@ class PapersForCount:
     def __iter__(self):
         return iter(self.papers.items())
 
+
 class PaperBundle:
     """
     a bundle is a collection of papers, all with the same ticket, and with a transfer value they
     were distributed under
     """
+
     def __init__(self, ticket, size, transfer_value):
         self.ticket, self.size, self.transfer_value = ticket, size, transfer_value
 
@@ -87,12 +98,14 @@ class PaperBundle:
     def get_transfer_value(self):
         return self.transfer_value
 
+
 class BundleTransaction:
     """
     a group of bundles which have been transferred to a candidate
     this is stored because we may need to know the number of votes
     contained within the bundle transfer if we later remove it
     """
+
     def __init__(self, bundles):
         assert(len(bundles) > 0)
         self.bundles = bundles
@@ -124,10 +137,12 @@ class BundleTransaction:
     def __iter__(self):
         return iter(self.bundles)
 
+
 class CandidateBundleTransactions:
     """
     describes which bundles a particular candidate is holding throughout the count
     """
+
     def __init__(self, candidate_ids, papers_for_count):
         """
         build initial bundles by first preference, and distribute
@@ -179,11 +194,13 @@ class CandidateBundleTransactions:
     def transfer_from(self, candidate_id, bundle):
         self.candidate_bundle_transactions[candidate_id].remove(bundle)
 
+
 class CandidateAggregates:
     """
     stores the number of votes, and the number of papers, held by each candidate at the end of a round
     the number of exhausted papers/votes and the number of votes gained/lost by fraction is also stored
     """
+
     def __init__(self, original_paper_count, candidate_votes, candidate_papers, exhausted_votes, exhausted_papers):
         self.candidate_votes = candidate_votes
         self.candidate_papers = candidate_papers
@@ -216,7 +233,9 @@ class CandidateAggregates:
     def get_gain_loss_votes(self):
         return self.gain_loss_votes
 
+
 class SenateCounter:
+
     def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, test_log_dir, **template_vars):
         self.output = JsonOutput(fname)
         self.automated_responses = automated_responses
@@ -246,14 +265,14 @@ class SenateCounter:
 
     def party_json(self):
         return dict((party, {
-            'name' : self.parties[party],
+            'name': self.parties[party],
         }) for party in self.parties)
 
     def candidate_json(self):
         return dict((candidate_id, {
-            'title' : self.candidate_title(candidate_id),
-            'party' : self.candidate_party(candidate_id),
-            'id' : candidate_id
+            'title': self.candidate_title(candidate_id),
+            'party': self.candidate_party(candidate_id),
+            'id': candidate_id
         }) for candidate_id in self.candidate_ids)
 
     def input_or_automated(self, entry, qn):
@@ -310,9 +329,9 @@ class SenateCounter:
                         entry.log("No tie breaker round: input required from Australian Electoral Officer. Elect candidates in order:", echo=True)
                         permutations = itertools.permutations(candidate_ids)
                         for idx, permutation in enumerate(permutations):
-                            entry.log("%d) %s" % (idx+1, ', '.join([self.candidate_title(t) for t in permutation])))
+                            entry.log("%d) %s" % (idx + 1, ', '.join([self.candidate_title(t) for t in permutation])))
                         choice = int(self.input_or_automated(entry, "choose election order: "))
-                        for candidate_id in permutations[choice-1]:
+                        for candidate_id in permutations[choice - 1]:
                             elected.append(candidate_id)
         return elected
 
@@ -348,7 +367,7 @@ class SenateCounter:
 
         candidate_votes = candidate_aggregates.get_candidate_votes()
 
-        # remaining aware of split tickets, determine how many papers go to 
+        # remaining aware of split tickets, determine how many papers go to
         # each candidate; effectively we unpack each bundle into preference flows,
         # split as needed, and then repack into new bundles
         votes_from = 0
@@ -373,7 +392,7 @@ class SenateCounter:
                     frac_of_total = fractions.Fraction(len(preference_flows), len(bundle.get_ticket()))
                     tickets_count = int(frac_of_total * bundle.get_size())
                     if to_candidate not in incoming_tickets:
-                        incoming_tickets[to_candidate] = []    
+                        incoming_tickets[to_candidate] = []
                     incoming_tickets[to_candidate].append((tuple(preference_flows), tickets_count))
         candidate_votes[from_candidate_id] -= votes_from
 
@@ -390,8 +409,8 @@ class SenateCounter:
 
     def elect(self, round_log, round_number, candidate_aggregates, candidate_id):
         self.candidates_elected[candidate_id] = {
-            'order' : len(self.candidates_elected) + 1,
-            'round' : round_number
+            'order': len(self.candidates_elected) + 1,
+            'round': round_number
         }
         transfer = None
         if len(self.candidates_elected) != self.vacancies:
@@ -408,9 +427,9 @@ class SenateCounter:
         if next_to_min_votes is not None:
             margin = next_to_min_votes - min_votes
         self.candidates_excluded[candidate_id] = {
-            'order' : len(self.candidates_excluded) + 1,
-            'round' : round_number,
-            'margin' : margin or 0
+            'order': len(self.candidates_excluded) + 1,
+            'round': round_number,
+            'margin': margin or 0
         }
         transfer_values = set()
         for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
@@ -428,8 +447,8 @@ class SenateCounter:
     def process_election(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
         round_log.set_distribution({
-            'type' : 'election',
-            'candidate_id': distributed_candidate_id, 
+            'type': 'election',
+            'candidate_id': distributed_candidate_id,
             'transfer_value': float(transfer_value)})
         total, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
             distributed_candidate_id,
@@ -442,7 +461,7 @@ class SenateCounter:
     def process_exclusion(self, round_log, distribution, last_total):
         distributed_candidate_id, transfer_value = distribution
         round_log.set_distribution({
-            'type' : 'exclusion',
+            'type': 'exclusion',
             'candidate_id': distributed_candidate_id,
             'transfer_value': float(transfer_value)})
         bundles_to_distribute = []
@@ -485,7 +504,7 @@ class SenateCounter:
             log.append((self.candidate_title(candidate_id), candidate_aggregates.get_vote_count(candidate_id)))
         with open(os.path.join(self.test_log_dir, 'round_%d.json' % (round_number)), 'w') as fd:
             json.dump(log, fd, sort_keys=True,
-                indent=4, separators=(',', ': '))
+                      indent=4, separators=(',', ': '))
 
     def candidate_election_order(self, candidate_id):
         """only for use in sorting for output"""
@@ -496,28 +515,29 @@ class SenateCounter:
     def log_round_count(self, round_log, affected, last_candidate_aggregates, candidate_aggregates):
         def exloss(a):
             return {
-                'exhausted_papers' : a.get_exhausted_papers(),
-                'exhausted_votes' : a.get_exhausted_votes(),
-                'gain_loss_papers' : a.get_gain_loss_papers(),
-                'gain_loss_votes' : a.get_gain_loss_votes(),
+                'exhausted_papers': a.get_exhausted_papers(),
+                'exhausted_votes': a.get_exhausted_votes(),
+                'gain_loss_papers': a.get_gain_loss_papers(),
+                'gain_loss_votes': a.get_gain_loss_votes(),
             }
+
         def agg(a):
             return {
-                'votes' : a.get_vote_count(candidate_id),
-                'papers' : a.get_paper_count(candidate_id)
+                'votes': a.get_vote_count(candidate_id),
+                'papers': a.get_paper_count(candidate_id)
             }
 
         r = {
-            'candidates' : [],
-            'after' : exloss(candidate_aggregates)
+            'candidates': [],
+            'after': exloss(candidate_aggregates)
         }
         if last_candidate_aggregates is not None:
             before = exloss(last_candidate_aggregates)
             r['delta'] = dict((t, r['after'][t] - before[t]) for t in before)
         for candidate_id in reversed(sorted(self.candidate_ids_display(candidate_aggregates), key=lambda x: (candidate_aggregates.get_vote_count(x), self.vacancies - self.candidate_election_order(x)))):
             entry = {
-                'id' : candidate_id,
-                'after' : agg(candidate_aggregates),
+                'id': candidate_id,
+                'after': agg(candidate_aggregates),
             }
             if candidate_id in self.candidates_elected:
                 entry['elected'] = self.candidates_elected[candidate_id]['order']
@@ -535,8 +555,8 @@ class SenateCounter:
             if not done:
                 r['candidates'].append(entry)
         r['total'] = {
-            'papers' : sum(t['after']['papers'] for t in r['candidates']) + r['after']['exhausted_papers'] + r['after']['gain_loss_papers'],
-            'votes' : sum(t['after']['votes'] for t in r['candidates']) + r['after']['exhausted_votes'] + r['after']['gain_loss_votes'],
+            'papers': sum(t['after']['papers'] for t in r['candidates']) + r['after']['exhausted_papers'] + r['after']['gain_loss_papers'],
+            'votes': sum(t['after']['votes'] for t in r['candidates']) + r['after']['exhausted_votes'] + r['after']['gain_loss_votes'],
         }
         return r
 
@@ -558,15 +578,16 @@ class SenateCounter:
     def ask_electoral_officer_tie(self, entry, question, candidate_ids):
         sorted_candidate_ids = list(sorted(candidate_ids, key=self.candidate_title))
         for idx, candidate_id in enumerate(sorted_candidate_ids):
-            entry.log("[%3d] - %s" % (idx+1, self.candidate_title(candidate_id)), echo=True)
+            entry.log("[%3d] - %s" % (idx + 1, self.candidate_title(candidate_id)), echo=True)
         return sorted_candidate_ids[int(self.input_or_automated(entry, question)) - 1]
 
     def exclude_a_candidate(self, round_log, round_number, candidate_aggregates):
-        eligible = lambda candidate_id: candidate_id not in self.candidates_elected and candidate_id not in self.candidates_excluded
+        def eligible(candidate_id):
+            return candidate_id not in self.candidates_elected and candidate_id not in self.candidates_excluded
 
         candidate_ids = [t for t in self.candidate_ids_display(candidate_aggregates) if eligible(t)]
         min_votes = min(candidate_aggregates.get_vote_count(t) for t in candidate_ids)
-        
+
         candidates_for_exclusion = []
         for candidate_id in candidate_ids:
             if candidate_aggregates.get_vote_count(candidate_id) == min_votes:
@@ -622,7 +643,7 @@ class SenateCounter:
             raise Exception("No distribution or exclusion this round. Nothing to do - unreachable.")
 
         candidate_aggregates = CandidateAggregates(self.total_papers, candidate_votes, self.candidate_bundle_transactions.candidate_paper_count(),
-             exhausted_votes + votes_exhausted_in_round, exhausted_papers + papers_exhausted_in_round)
+                                                   exhausted_votes + votes_exhausted_in_round, exhausted_papers + papers_exhausted_in_round)
         self.round_candidate_aggregates.append(candidate_aggregates)
 
         self.json_log(round_number, candidate_aggregates)
@@ -636,7 +657,7 @@ class SenateCounter:
                     if len(self.candidates_elected) == self.vacancies:
                         return False
             elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
-                # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even 
+                # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even
                 # if they don't have a quota
                 in_the_running = list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
                 if len(in_the_running) == 2:
@@ -657,7 +678,7 @@ class SenateCounter:
                             self.elect(round_log, round_number, candidate_id)
                             affected.add(candidate_id)
                     return False
-                # if a distribution doesn't generate any 
+                # if a distribution doesn't generate any
                 while True:
                     self.exclude_a_candidate(round_log, round_number, candidate_aggregates)
                     if self.have_pending_exclusion_distribution():
@@ -680,14 +701,18 @@ class SenateCounter:
 
     def summary(self):
         r = {
-            'elected' : [],
-            'excluded' : []
+            'elected': [],
+            'excluded': []
         }
-        in_order = lambda l: enumerate(sorted(l, key=lambda k: l[k]['order']))
+
+        def in_order(l):
+            return enumerate(sorted(l, key=lambda k: l[k]['order']))
+
         def outcome(candidate_id, d):
             r = d[candidate_id].copy()
             r['id'] = candidate_id
             return r
+
         for idx, candidate_id in in_order(self.candidates_elected):
             r['elected'].append(outcome(candidate_id, self.candidates_elected))
         for idx, candidate_id in in_order(self.candidates_excluded):
