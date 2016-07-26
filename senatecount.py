@@ -186,11 +186,6 @@ class SenateBTL:
             yield ticket, self.ticket_votes[ticket]
 
 
-def senate_count(fname, state_name, vacancies, data_dir, *args, **kwargs):
-    candidates, atl, btl, tickets_for_count = senate_count_setup(state_name, data_dir)
-    senate_count_run(fname, vacancies, tickets_for_count, candidates, atl, btl, *args, **kwargs)
-
-
 def senate_count_setup(state_name, data_dir):
     def load_tickets(ticket_obj):
         if ticket_obj is None:
@@ -284,8 +279,7 @@ def get_data(config_file, out_dir):
         json.dump(obj, fd)
 
     senate_count_data = []
-    for i in range(len(config['count'])):
-        count = config['count'][i]
+    for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
         senate_count_data.append(senate_count_setup(config['state'], data_dir))
     return senate_count_data
@@ -296,9 +290,7 @@ def get_outcome(config_file, out_dir, senate_count_data):
     with open(config_file) as fd:
         config = json.load(fd)
     test_logs_okay = True
-    for i in range(len(config['count'])):
-        count = config['count'][i]
-        sc_data = senate_count_data[i]
+    for count, sc_data in zip(config['count'], senate_count_data):
         (candidates, atl, btl, tickets_for_count) = sc_data
         test_log_dir = None
         if 'verified' in count:
