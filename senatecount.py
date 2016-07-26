@@ -186,24 +186,43 @@ class SenateBTL:
             yield ticket, self.ticket_votes[ticket]
 
 
-def senate_count_setup(state_name, data_dir):
-    def load_tickets(ticket_obj):
-        if ticket_obj is None:
-            return
-        for ticket, n in ticket_obj.get_tickets():
-            tickets_for_count.add_ticket(ticket, n)
+class SenateCountPre2015:
+    def __init__(self, state_name, data_dir):
+        def df(x):
+            return glob.glob(os.path.join(data_dir, x))[0]
 
-    def df(x):
-        return glob.glob(os.path.join(data_dir, x))[0]
+        self.candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
+        self.atl = SenateATL(
+            state_name, self.candidates, df('wa-gvt.csv.xz'),
+            df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
+        self.btl = SenateBTL(self.candidates, df('SenateStateBTLPreferences-*-WA.csv.xz'))
 
-    candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
-    atl = SenateATL(state_name, candidates, df('wa-gvt.csv.xz'),
-                    df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
-    btl = SenateBTL(candidates, df('SenateStateBTLPreferences-*-WA.csv.xz'))
-    tickets_for_count = PapersForCount()
-    load_tickets(atl)
-    load_tickets(btl)
-    return (candidates, atl, btl, tickets_for_count)
+        def load_tickets(ticket_obj):
+            if ticket_obj is None:
+                return
+            for ticket, n in ticket_obj.get_tickets():
+                self.tickets_for_count.add_ticket(ticket, n)
+        self.tickets_for_count = PapersForCount()
+        load_tickets(self.atl)
+        load_tickets(self.btl)
+
+    def get_tickets_for_count(self):
+        return self.tickets_for_count
+
+    def get_candidate_ids(self):
+        return self.atl.get_candidate_ids()
+
+    def get_parties(self):
+        return self.candidates.get_parties()
+
+    def get_candidate_title(self, candidate_id):
+        return self.atl.get_candidate_title(candidate_id)
+
+    def get_candidate_order(self, candidate_id):
+        return self.atl.get_candidate_order(candidate_id)
+
+    def get_candidate_party(self, candidate_id):
+        return self.candidates.lookup_id(candidate_id).PartyAb,
 
 
 def senate_count_run(fname, vacancies, tickets_for_count, candidates, atl, btl, *args, **kwargs):
@@ -281,7 +300,8 @@ def get_data(config_file, out_dir):
     senate_count_data = []
     for count in config['count']:
         data_dir = os.path.join(base_dir, count['path'])
-        senate_count_data.append(senate_count_setup(config['state'], data_dir))
+        count = SenateCountPre2015(config['state'], data_dir)
+        senate_count_data.append(count)
     return senate_count_data
 
 
@@ -290,16 +310,22 @@ def get_outcome(config_file, out_dir, senate_count_data):
     with open(config_file) as fd:
         config = json.load(fd)
     test_logs_okay = True
-    for count, sc_data in zip(config['count'], senate_count_data):
-        (candidates, atl, btl, tickets_for_count) = sc_data
+    for count, count_data in zip(config['count'], senate_count_data):
         test_log_dir = None
         if 'verified' in count:
             test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
         outf = os.path.join(out_dir, count['shortname'] + '.json')
         print("counting %s -> %s" % (count['name'], outf))
-        senate_count_run(
-            outf, config['vacancies'], tickets_for_count, candidates, atl, btl,
-            count.get('automation') or [],
+        SenateCounter(
+            outf,
+            config['vacancies'],
+            count_data.get_tickets_for_count(),
+            count_data.get_parties(),
+            count_data.get_candidate_ids(),
+            count_data.get_candidate_order,
+            count_data.get_candidate_title,
+            count_data.get_candidate_party,
+            count.get('automation', []),
             test_log_dir,
             name=count.get('name'),
             description=count.get('description'),
@@ -318,8 +344,8 @@ def get_outcome(config_file, out_dir, senate_count_data):
 
 
 def main_separate(config_file, out_dir):
-    sc_data = get_data(config_file, out_dir)
-    get_outcome(config_file, out_dir, sc_data)
+    data = get_data(config_file, out_dir)
+    get_outcome(config_file, out_dir, data)
 
 
 def main(config_file, out_dir):
