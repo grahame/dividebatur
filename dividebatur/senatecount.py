@@ -284,7 +284,5 @@ def main(config_file, out_dir):
 
 
 if __name__ == '__main__':
-    config_file = sys.argv[1]
-    out_dir = sys.argv[2]
     # really should use the CLI program
     main(*sys.argv[1:])
