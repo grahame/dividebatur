@@ -26,15 +26,14 @@ Copyright 2013 Grahame Bowland
 
 The AEC provided data under aec\_fed2013\_wa/data is licensed under a 
 Creative Commons Attribution 3.0 Australia Licence (CC BY 3.0), and is 
-© Commonwealth of Australia. License terms:
-
-    http://aec.gov.au/footer/Copyright.htm
+© Commonwealth of Australia. Full License terms are on the
+[AEC website](http://aec.gov.au/footer/Copyright.htm)
 
 ## Usage
-`./run\_aec\_fed2013\_wa.sh` will run a count of the 2013/14 WA Senate count .
+`./run_aec_fed2013_wa.sh` will run a count of the 2013/14 WA Senate count .
 The data is in the repository under `aec_data/fed2013_wa`.
 
-`./run\_aec\_fed2016.sh` will run a count for all states with data available,
+`./run_aec_fed2016.sh` will run a count for all states with data available,
 for the 2016 federal election. The data is in the repository under `aec_data/fed2016`.
 
 ## Structure
