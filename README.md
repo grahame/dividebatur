@@ -24,7 +24,7 @@ Copyright 2013 Grahame Bowland
     See the License for the specific language governing permissions and
     limitations under the License.
 
-The AEC provided data under aec\_fed2013\_wa/data is licensed under a 
+The data located under `aec_data/` is licensed under a 
 Creative Commons Attribution 3.0 Australia Licence (CC BY 3.0), and is 
 © Commonwealth of Australia. Full License terms are on the
 [AEC website](http://aec.gov.au/footer/Copyright.htm)
