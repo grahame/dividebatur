@@ -26,6 +26,80 @@ def named_tuple_iter(name, reader, header, **kwargs):
         yield typ(*row)
 
 
+class AllCandidates:
+    "parse AEC 'all candidates' CSV file"
+
+    def __init__(self, csv_file, state):
+        self.state = state
+        self.load(csv_file)
+
+    def load(self, csv_file):
+        self.groups = {}
+        with lzma.open(csv_file, 'rt') as fd:
+            reader = csv.reader(fd)
+            header = next(reader)
+            for candidate in sorted(named_tuple_iter('AllCandidate', reader, header, ballot_position=int), key=lambda row: (row.ticket, row.ballot_position)):
+                if candidate.state_ab != self.state:
+                    continue
+                if candidate.nom_ty != 'S':
+                    continue
+                if candidate.ticket not in self.groups:
+                    self.groups[candidate.ticket] = []
+                self.groups[candidate.ticket].append(candidate)
+
+
+class SenateFlows:
+    "work out the flow per group above the line (post 2015)"
+
+    def __init__(self, candidates, all_candidates):
+        self.groups = []
+        self.flows = {}
+        self.btl = []
+        self.candidate_title = {}
+        self.match(candidates, all_candidates)
+
+    def get_candidate_ids(self):
+        return list(self.btl)
+
+    def get_candidate_title(self, candidate_id):
+        return self.candidate_title[candidate_id]
+
+    def get_candidate_order(self, candidate_id):
+        return self.btl.index(candidate_id)
+
+    def match(self, candidates, all_candidates):
+        for group, ac in sorted(all_candidates.groups.items()):
+            for all_candidate in ac:
+                k = (all_candidate.surname, all_candidate.ballot_given_nm, all_candidate.party_ballot_nm)
+                matched = candidates.by_name_party[k]
+                if group != 'UG':
+                    if group not in self.flows:
+                        self.flows[group] = []
+                    self.flows[group].append(matched.CandidateID)
+                self.btl.append(matched.CandidateID)
+                self.candidate_title[matched.CandidateID] = matched.Surname + ', ' + matched.GivenNm
+        self.groups = list(sorted(self.flows.keys()))
+
+
+class FormalPreferences:
+    "parse AEC 'formal preferences' CSV file"
+
+    def __init__(self, csv_file):
+        self._csv_file = csv_file
+
+    def __iter__(self):
+        def parse_prefs(s):
+            ", delimited, with * and / meaning 1"
+            return [int_or_none(t) for t in s.replace('*', '1').replace('/', '1').split(',')]
+        with lzma.open(self._csv_file, 'rt') as fd:
+            reader = csv.reader(fd)
+            header = next(reader)
+            dummy = next(reader)
+            assert(dummy == ['------------', '---------------------', '---------------------', '-------', '-------', '-----------'])
+            for pref in named_tuple_iter('FormalPref', reader, header, Preferences=parse_prefs):
+                yield pref
+
+
 class Candidates:
     "parses AEC candidates CSV file"
 

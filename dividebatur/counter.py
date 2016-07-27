@@ -27,6 +27,7 @@ class PreferenceFlow:
         self.up_to_preference += 1
 
     def get_preference(self):
+        "note that if there are multiple preferences for the current pref, returns None (exhausts)"
         matches = []
         for pref, candidate in self.preferences:
             if pref == self.up_to_preference:

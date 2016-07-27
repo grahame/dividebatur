@@ -8,8 +8,8 @@ import difflib
 import re
 import glob
 from pprint import pprint, pformat
-from .counter import PapersForCount, SenateCounter
-from .aecdata import Candidates, SenateATL, SenateBTL
+from .counter import PapersForCount, SenateCounter, Ticket, PreferenceFlow
+from .aecdata import Candidates, SenateATL, SenateBTL, AllCandidates, SenateFlows, FormalPreferences
 
 
 class SenateCountPost2015:
@@ -18,6 +18,81 @@ class SenateCountPost2015:
             return glob.glob(os.path.join(data_dir, x))[0]
 
         self.candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
+        self.all_candidates = AllCandidates(df('*all-candidates-*.csv.xz'), state_name)
+        self.flows = SenateFlows(self.candidates, self.all_candidates)
+        self.tickets_for_count = PapersForCount()
+
+        def atl_flow(form):
+            by_pref = {}
+            for pref, group in zip(form, self.flows.groups):
+                if pref is None:
+                    continue
+                if pref not in by_pref:
+                    by_pref[pref] = []
+                by_pref[pref].append(group)
+            prefs = []
+            for i in range(1, len(form) + 1):
+                at_pref = by_pref.get(i)
+                if not at_pref or len(at_pref) != 1:
+                    break
+                the_pref = at_pref[0]
+                for candidate_id in self.flows.flows[the_pref]:
+                    prefs.append((len(prefs) + 1, candidate_id))
+            if not prefs:
+                return None
+            return Ticket((PreferenceFlow(tuple(prefs)), ))
+
+        def btl_flow(form):
+            by_pref = {}
+            for pref, candidate_id in zip(form, self.flows.btl):
+                if pref is None:
+                    continue
+                if pref not in by_pref:
+                    by_pref[pref] = []
+                by_pref[pref].append(candidate_id)
+            prefs = []
+            for i in range(1, len(form) + 1):
+                at_pref = by_pref.get(i)
+                if not at_pref or len(at_pref) != 1:
+                    # must have unique prefs for 1..6, or informal
+                    if i <= 6:
+                        return None
+                    break
+                candidate_id = at_pref[0]
+                prefs.append((i, candidate_id))
+            return Ticket((PreferenceFlow(tuple(prefs)), ))
+
+        atl_n = len(self.flows.groups)
+        btl_n = len(self.flows.btl)
+        for pref in FormalPreferences(df('*formalpreferences-*.csv.xz')):
+            raw_form = pref.Preferences
+            assert(len(raw_form) == atl_n + btl_n)
+            # BTL takes precedence
+            atl = raw_form[:atl_n]
+            btl = raw_form[atl_n:]
+            form = btl_flow(btl) or atl_flow(atl)
+            if form:
+                self.tickets_for_count.add_ticket(form, 1)
+            else:
+                print("informal:", atl, btl)
+
+    def get_tickets_for_count(self):
+        return self.tickets_for_count
+
+    def get_candidate_ids(self):
+        return self.flows.get_candidate_ids()
+
+    def get_parties(self):
+        return self.candidates.get_parties()
+
+    def get_candidate_title(self, candidate_id):
+        return self.flows.get_candidate_title(candidate_id)
+
+    def get_candidate_order(self, candidate_id):
+        return self.flows.get_candidate_order(candidate_id)
+
+    def get_candidate_party(self, candidate_id):
+        return self.candidates.lookup_id(candidate_id).PartyAb
 
 
 class SenateCountPre2015:
@@ -56,7 +131,7 @@ class SenateCountPre2015:
         return self.atl.get_candidate_order(candidate_id)
 
     def get_candidate_party(self, candidate_id):
-        return self.candidates.lookup_id(candidate_id).PartyAb,
+        return self.candidates.lookup_id(candidate_id).PartyAb
 
 
 def senate_count_run(fname, vacancies, tickets_for_count, candidates, atl, btl, *args, **kwargs):
