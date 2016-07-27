@@ -2,7 +2,7 @@ language: python
 python:
   - "3.5"
 # command to run tests, e.g. python setup.py test
-script: bash run_aec_fed2013_wa.sh
+script: bash travis_tests.sh
 notifications:
   email:
     - grahame@angrygoats.net

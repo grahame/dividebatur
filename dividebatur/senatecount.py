@@ -181,7 +181,7 @@ def verify_test_logs(verified_dir, test_log_dir):
             ok = False
         else:
             print("Round %d: OK" % idx)
-    if ok:
+    if ok and len(rounds) > 0:
         for fname in os.listdir(test_log_dir):
             if test_re.match(fname):
                 os.unlink(os.path.join(test_log_dir, fname))
@@ -230,6 +230,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
     test_log_dir = None
     if 'verified' in count:
         test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
+        print("test logs are written to: %s" % (test_log_dir))
     outf = os.path.join(out_dir, count['shortname'] + '.json')
     print("counting %s -> %s" % (count['name'], outf))
     counter = SenateCounter(
@@ -249,11 +250,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
     counter.set_automation_callback(make_automation(count.get('automation', [])))
     counter.run()
     if test_log_dir is not None:
-        if not verify_test_logs(
-                os.path.join(
-                    base_dir,
-                    count['verified']),
-                test_log_dir):
+        if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
             test_logs_okay = False
     if not test_logs_okay:
         print("** TESTS FAILED **")
