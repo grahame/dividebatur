@@ -189,15 +189,16 @@ def verify_test_logs(verified_dir, test_log_dir):
     return ok
 
 
-def get_data(config_file, out_dir):
-    base_dir = os.path.dirname(os.path.abspath(config_file))
+def read_config(config_file):
     with open(config_file) as fd:
-        config = json.load(fd)
+        return json.load(fd)
+
+
+def write_angular_json(config, out_dir):
     json_f = os.path.join(out_dir, 'count.json')
     with open(json_f, 'w') as fd:
         obj = {
-            'house': config['house'],
-            'state': config['state']
+            'title': config['title']
         }
         obj['counts'] = [{
             'name': count['name'],
@@ -206,68 +207,71 @@ def get_data(config_file, out_dir):
             for count in config['count']]
         json.dump(obj, fd)
 
-    method_cls = None
-    if config['method'] == 'AusSenatePre2015':
-        method_cls = SenateCountPre2015
-    elif config['method'] == 'AusSenatePost2015':
-        method_cls = SenateCountPost2015
-    senate_count_data = []
-    for count in config['count']:
-        data_dir = os.path.join(base_dir, count['path'])
-        count = method_cls(config['state'], data_dir)
-        senate_count_data.append(count)
-    return senate_count_data
+
+def get_data(method_cls, base_dir, count):
+    data_dir = os.path.join(base_dir, count['path'])
+    return method_cls(count['state'], data_dir)
 
 
-def get_outcome(config_file, out_dir, senate_count_data):
-    base_dir = os.path.dirname(os.path.abspath(config_file))
-    with open(config_file) as fd:
-        config = json.load(fd)
+def get_outcome(count, count_data, base_dir, out_dir):
     test_logs_okay = True
-    for count, count_data in zip(config['count'], senate_count_data):
-        test_log_dir = None
-        if 'verified' in count:
-            test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
-        outf = os.path.join(out_dir, count['shortname'] + '.json')
-        print("counting %s -> %s" % (count['name'], outf))
-        SenateCounter(
-            outf,
-            config['vacancies'],
-            count_data.get_tickets_for_count(),
-            count_data.get_parties(),
-            count_data.get_candidate_ids(),
-            count_data.get_candidate_order,
-            count_data.get_candidate_title,
-            count_data.get_candidate_party,
-            count.get('automation', []),
-            test_log_dir,
-            name=count.get('name'),
-            description=count.get('description'),
-            house=config['house'],
-            state=config['state'])
-        if test_log_dir is not None:
-            if not verify_test_logs(
-                    os.path.join(
-                        base_dir,
-                        count['verified']),
-                    test_log_dir):
-                test_logs_okay = False
+    test_log_dir = None
+    if 'verified' in count:
+        test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
+    outf = os.path.join(out_dir, count['shortname'] + '.json')
+    print("counting %s -> %s" % (count['name'], outf))
+    SenateCounter(
+        outf,
+        count['vacancies'],
+        count_data.get_tickets_for_count(),
+        count_data.get_parties(),
+        count_data.get_candidate_ids(),
+        count_data.get_candidate_order,
+        count_data.get_candidate_title,
+        count_data.get_candidate_party,
+        count.get('automation', []),
+        test_log_dir,
+        name=count.get('name'),
+        description=count.get('description'),
+        house=count['house'],
+        state=count['state'])
+    if test_log_dir is not None:
+        if not verify_test_logs(
+                os.path.join(
+                    base_dir,
+                    count['verified']),
+                test_log_dir):
+            test_logs_okay = False
     if not test_logs_okay:
         print("** TESTS FAILED **")
         sys.exit(1)
 
 
-def main_separate(config_file, out_dir):
-    data = get_data(config_file, out_dir)
-    get_outcome(config_file, out_dir, data)
+def get_counting_method(method):
+    # determine the counting method
+    if method == 'AusSenatePre2015':
+        return SenateCountPre2015
+    elif method == 'AusSenatePost2015':
+        return SenateCountPost2015
 
 
 def main(config_file, out_dir):
-    config_file = sys.argv[1]
-    out_dir = sys.argv[2]
-    main_separate(config_file, out_dir)
+    base_dir = os.path.dirname(os.path.abspath(config_file))
+    config = read_config(config_file)
+    # global config for the angular frontend
+    write_angular_json(config, out_dir)
+    method_cls = get_counting_method(config['method'])
+    if method_cls is None:
+        raise Exception("unsupported counting method `%s' requested" % (config['method']))
+    for count in config['count']:
+        print("reading data for count: `%s'" % (count['name']))
+        data = get_data(method_cls, base_dir, count)
+        print("determining outcome for count: `%s'" % (count['name']))
+        get_outcome(count, data, base_dir, out_dir)
+
 
 if __name__ == '__main__':
     config_file = sys.argv[1]
     out_dir = sys.argv[2]
-    main(config_file=config_file, out_dir=out_dir)
+    # really should use the CLI program
+    main(*sys.argv[1:])

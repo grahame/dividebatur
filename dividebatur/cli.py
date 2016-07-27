@@ -1,4 +1,4 @@
-from .senatecount import main_separate
+from .senatecount import main as count_main
 import argparse
 
 
@@ -13,4 +13,4 @@ def main():
         type=str,
         help='Output directory')
     args = parser.parse_args()
-    main_separate(args.config_file, args.out_dir)
+    count_main(args.config_file, args.out_dir)

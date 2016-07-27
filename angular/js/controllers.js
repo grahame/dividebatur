@@ -4,9 +4,8 @@ divideBatur.controller('CountCtrl', ['$scope', '$http',
   function ($scope, $http) {
     $http.get('data/count.json').success(function(data) {
       $scope.counts = data['counts'];
+      $scope.title = data['title'];
       $scope.count = $scope.counts[0];
-      $scope.state = data['state'];
-      $scope.house = data['house'];
   });
 }]);
 
@@ -20,6 +19,8 @@ divideBatur.controller('CountDetailCtrl', ['$scope', '$routeParams', '$http', '$
       $scope.rounds = data.rounds.length;
       $scope.parameters = data.parameters;
       $scope.parties = data.parties;
+      $scope.state = data.state;
+      $scope.house = data.house;
       $scope.data_link = countData.dataPath($scope.shortname);
     });
 }]);
