@@ -236,13 +236,13 @@ class CandidateAggregates:
 
 
 class SenateCounter:
-    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, automated_responses, test_log_dir, **template_vars):
+    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, test_log_dir, **kwargs):
         self.output = JsonOutput(fname)
-        self.automated_responses = automated_responses
         self.vacancies, self.papers_for_count, self.parties, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party = \
             vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party
         self.test_log_dir = test_log_dir
         self.next_automated = 0
+        self.template_vars = kwargs
         # senators elected; candidates excluded from the count; neither of these are
         # eligible to have papers distributed to them
         self.candidates_elected = {}
@@ -252,6 +252,15 @@ class SenateCounter:
         # leads to an election
         self.exclusion_distributions_pending = []
         self.election_distributions_pending = []
+        self.has_run = False
+        self.set_automation_callback(None)
+
+    def set_automation_callback(self, cb):
+        self.automation_callback = cb
+
+    def run(self):
+        assert(self.has_run is False)
+        self.has_run = True
         # determine quota
         self.determine_quota()
         # initial assignment of tickets
@@ -261,7 +270,7 @@ class SenateCounter:
         # log who got elected/excluded
         self.output.set_summary(self.summary())
         # render to HTML
-        self.output.render(self, template_vars)
+        self.output.render(self, self.template_vars)
 
     def party_json(self):
         return dict((party, {
@@ -276,10 +285,11 @@ class SenateCounter:
         }) for candidate_id in self.candidate_ids)
 
     def input_or_automated(self, entry, qn):
-        if self.next_automated < len(self.automated_responses):
-            resp = self.automated_responses[self.next_automated]
+        resp = None
+        if self.automation_callback is not None:
+            resp = self.automation_callback()
+        if resp is not None:
             entry.log("%s\nautomation: '%s' entered" % (qn, resp), echo=True)
-            self.next_automated += 1
             return resp
         else:
             entry.log(qn, echo=True, end='')

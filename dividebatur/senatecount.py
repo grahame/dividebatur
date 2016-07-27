@@ -213,6 +213,18 @@ def get_data(method_cls, base_dir, count):
     return method_cls(count['state'], data_dir)
 
 
+def make_automation(answers):
+    done = []
+
+    def __auto_fn():
+        if len(done) == len(answers):
+            return None
+        resp = answers[len(done)]
+        done.append(resp)
+        return resp
+    return __auto_fn
+
+
 def get_outcome(count, count_data, base_dir, out_dir):
     test_logs_okay = True
     test_log_dir = None
@@ -220,7 +232,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
         test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
     outf = os.path.join(out_dir, count['shortname'] + '.json')
     print("counting %s -> %s" % (count['name'], outf))
-    SenateCounter(
+    counter = SenateCounter(
         outf,
         count['vacancies'],
         count_data.get_tickets_for_count(),
@@ -229,12 +241,13 @@ def get_outcome(count, count_data, base_dir, out_dir):
         count_data.get_candidate_order,
         count_data.get_candidate_title,
         count_data.get_candidate_party,
-        count.get('automation', []),
         test_log_dir,
         name=count.get('name'),
         description=count.get('description'),
         house=count['house'],
         state=count['state'])
+    counter.set_automation_callback(make_automation(count.get('automation', [])))
+    counter.run()
     if test_log_dir is not None:
         if not verify_test_logs(
                 os.path.join(
