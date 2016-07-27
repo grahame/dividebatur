@@ -13,7 +13,7 @@ from .aecdata import Candidates, SenateATL, SenateBTL, AllCandidates, SenateFlow
 
 
 class SenateCountPost2015:
-    def __init__(self, state_name, data_dir):
+    def __init__(self, state_name, data_dir, s282=None):
         def df(x):
             return glob.glob(os.path.join(data_dir, x))[0]
 
@@ -208,9 +208,9 @@ def write_angular_json(config, out_dir):
         json.dump(obj, fd)
 
 
-def get_data(method_cls, base_dir, count):
+def get_data(method_cls, base_dir, count, **kwargs):
     data_dir = os.path.join(base_dir, count['path'])
-    return method_cls(count['state'], data_dir)
+    return method_cls(count['state'], data_dir, **kwargs)
 
 
 def make_automation(answers):
@@ -255,6 +255,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
     if not test_logs_okay:
         print("** TESTS FAILED **")
         sys.exit(1)
+    return counter
 
 
 def get_counting_method(method):
@@ -277,7 +278,13 @@ def main(config_file, out_dir):
         print("reading data for count: `%s'" % (count['name']))
         data = get_data(method_cls, base_dir, count)
         print("determining outcome for count: `%s'" % (count['name']))
-        get_outcome(count, data, base_dir, out_dir)
+        result = get_outcome(count, data, base_dir, out_dir)
+        if count.get('s282_recount'):
+            print("reading data for count: `%s' (s282 rerun)" % (count['name']))
+            data = get_data(method_cls, base_dir, count, s282=result.candidates_elected.keys())
+            print("determining outcome for count: `%s'" % (count['name']))
+            get_outcome(count, data, base_dir, out_dir)
+
 
 
 if __name__ == '__main__':
