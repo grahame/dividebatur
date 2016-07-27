@@ -667,26 +667,38 @@ class SenateCounter:
                     if len(self.candidates_elected) == self.vacancies:
                         return False
             elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
+                in_the_running = list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
+                still_to_elect = self.vacancies - len(self.candidates_elected)
+                # section 273(18); if we're down to N candidates in the running, with N vacancies, the remaining candidates are elected
+                if len(in_the_running) == still_to_elect:
+                    with LogEntry(round_log) as entry:
+                        entry.log("Final %d vacancies filled from last candidates standing, in accordance with section 273(18)." % (still_to_elect), echo=True)
+                        for candidate in reversed(sorted(in_the_running, key=lambda c: candidate_aggregates.get_vote_count(c))):
+                            self.elect(round_log, round_number, candidate_aggregates, candidate_id)
+                            affected.add(candidate_id)
+                    return False
                 # section 273(17); if we're down to two candidates in the running, the candidate with the highest number of votes wins - even
                 # if they don't have a quota
-                in_the_running = list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
                 if len(in_the_running) == 2:
                     candidate_a = in_the_running[0]
                     candidate_b = in_the_running[1]
                     candidate_a_votes = candidate_aggregates.get_vote_count(candidate_a)
                     candidate_b_votes = candidate_aggregates.get_vote_count(candidate_b)
-                    if candidate_a_votes > candidate_b_votes:
-                        self.elect(round_log, round_number, candidate_aggregates, candidate_a)
-                        affected.add(candidate_a)
-                    elif candidate_b_votes > candidate_a_votes:
-                        self.elect(round_log, round_number, candidate_aggregates, candidate_b)
-                        affected.add(candidate_b)
-                    else:
+                    if candidate_a_votes == candidate_b_votes:
                         with LogEntry(round_log) as entry:
-                            entry.log("Final two candidates lack a quota and are tied. Australian Electoral Officer for this state must decided the final election.", echo=True)
+                            entry.log("Final two candidates lack a quota and are tied. Australian Electoral Officer for this state must decide the final election.", echo=True)
                             candidate_id = self.ask_electoral_officer_tie(entry, "choose candidate to elect: ", in_the_running)
                             self.elect(round_log, round_number, candidate_id)
                             affected.add(candidate_id)
+                    else:
+                        with LogEntry(round_log) as entry:
+                            entry.log("Two candidates remain, with no candidate holding a quota. In accordance with 273(17), candidate with highest total is elected.", echo=True)
+                        if candidate_a_votes > candidate_b_votes:
+                            self.elect(round_log, round_number, candidate_aggregates, candidate_a)
+                            affected.add(candidate_a)
+                        elif candidate_b_votes > candidate_a_votes:
+                            self.elect(round_log, round_number, candidate_aggregates, candidate_b)
+                            affected.add(candidate_b)
                     return False
                 # if a distribution doesn't generate any
                 while True:
