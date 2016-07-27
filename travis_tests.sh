@@ -2,6 +2,10 @@
 
 set -e
 
+pip install flake8
+
+flake8 --ignore=E501 dividebatur
+
 echo "** Tests: Federal 2013 WA **"
 ./run_aec_fed2013_wa.sh
 
