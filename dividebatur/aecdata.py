@@ -12,6 +12,11 @@ def int_or_none(s):
         return None
 
 
+def ticket_sort_key(ticket):
+    "sort key for an ATL ticket, eg. A..Z, AA..ZZ"
+    return (len(ticket), ticket)
+
+
 def named_tuple_iter(name, reader, header, **kwargs):
     field_names = [t for t in [t.strip().replace('-', '_')
                                for t in header] if t]
@@ -38,7 +43,7 @@ class AllCandidates:
         with lzma.open(csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
-            for candidate in sorted(named_tuple_iter('AllCandidate', reader, header, ballot_position=int), key=lambda row: (row.ticket, row.ballot_position)):
+            for candidate in sorted(named_tuple_iter('AllCandidate', reader, header, ballot_position=int), key=lambda row: (ticket_sort_key(row.ticket), row.ballot_position)):
                 if candidate.state_ab != self.state:
                     continue
                 if candidate.nom_ty != 'S':
@@ -68,7 +73,9 @@ class SenateFlows:
         return self.btl.index(candidate_id)
 
     def match(self, candidates, all_candidates):
-        for group, ac in sorted(all_candidates.groups.items()):
+        self.groups = list(sorted(self.flows.keys(), key=ticket_sort_key))
+        for group in self.groups:
+            ac = self.all_candidate.groups[group]
             for all_candidate in ac:
                 k = (all_candidate.surname, all_candidate.ballot_given_nm, all_candidate.party_ballot_nm)
                 matched = candidates.by_name_party[k]
@@ -78,7 +85,6 @@ class SenateFlows:
                     self.flows[group].append(matched.CandidateID)
                 self.btl.append(matched.CandidateID)
                 self.candidate_title[matched.CandidateID] = matched.Surname + ', ' + matched.GivenNm
-        self.groups = list(sorted(self.flows.keys()))
 
 
 class FormalPreferences:
@@ -152,18 +158,8 @@ class SenateATL:
             reader = csv.reader(fd)
             header = next(reader)
             it = sorted(
-                named_tuple_iter(
-                    'GvtRow',
-                    reader,
-                    header,
-                    Preference=int,
-                    TicketNo=int,
-                    Ticket=lambda t: t.strip()),
-                key=lambda gvt: (
-                    gvt.StateAb,
-                    gvt.Ticket,
-                    gvt.TicketNo,
-                    gvt.Preference))
+                named_tuple_iter('GvtRow', reader, header, Preference=int, TicketNo=int, Ticket=lambda t: t.strip()),
+                key=lambda gvt: (gvt.StateAb, ticket_sort_key(gvt.Ticket), gvt.TicketNo, gvt.Preference))
             for (state_ab, ticket, ticket_no), g in itertools.groupby(
                     it, lambda gvt: (gvt.StateAb, gvt.Ticket, gvt.TicketNo)):
                 prefs = []
@@ -249,7 +245,5 @@ class SenateBTL:
                 self.ticket_votes[ticket] += 1
 
     def get_tickets(self):
-        for ticket in sorted(
-                self.ticket_votes,
-                key=lambda x: self.ticket_votes[x]):
+        for ticket in sorted(self.ticket_votes, key=lambda x: self.ticket_votes[x]):
             yield ticket, self.ticket_votes[ticket]
