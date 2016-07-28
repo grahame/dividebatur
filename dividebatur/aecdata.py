@@ -73,9 +73,11 @@ class SenateFlows:
         return self.btl.index(candidate_id)
 
     def match(self, candidates, all_candidates):
-        self.groups = list(sorted(self.flows.keys(), key=ticket_sort_key))
-        for group in self.groups:
-            ac = self.all_candidate.groups[group]
+        # UG: ungrouped (not a real group, placing a '1' in this ATL is a trap). doesn't
+        # count for ATL flows, but does count for BTL ordering
+        all_groups = [t for t in sorted(all_candidates.groups.keys(), key=ticket_sort_key)]
+        for group in all_groups:
+            ac = all_candidates.groups[group]
             for all_candidate in ac:
                 k = (all_candidate.surname, all_candidate.ballot_given_nm, all_candidate.party_ballot_nm)
                 matched = candidates.by_name_party[k]
@@ -85,6 +87,7 @@ class SenateFlows:
                     self.flows[group].append(matched.CandidateID)
                 self.btl.append(matched.CandidateID)
                 self.candidate_title[matched.CandidateID] = matched.Surname + ', ' + matched.GivenNm
+        self.groups = [t for t in all_groups if t != 'UG']
 
 
 class FormalPreferences:
