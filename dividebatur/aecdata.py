@@ -51,12 +51,11 @@ class AllCandidates:
 class SenateFlows:
     "work out the flow per group above the line (post 2015)"
 
-    def __init__(self, candidates, all_candidates, constrain=None):
+    def __init__(self, candidates, all_candidates):
         self.groups = []
         self.flows = {}
         self.btl = []
         self.candidate_title = {}
-        self.constrain = None
         self.match(candidates, all_candidates)
 
     def get_candidate_ids(self):
@@ -73,8 +72,6 @@ class SenateFlows:
             for all_candidate in ac:
                 k = (all_candidate.surname, all_candidate.ballot_given_nm, all_candidate.party_ballot_nm)
                 matched = candidates.by_name_party[k]
-                if self.constrain is not None and matched.CandidateID not in self.constrain:
-                    continue
                 if group != 'UG':
                     if group not in self.flows:
                         self.flows[group] = []

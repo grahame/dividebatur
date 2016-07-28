@@ -13,7 +13,7 @@ from .aecdata import Candidates, SenateATL, SenateBTL, AllCandidates, SenateFlow
 
 
 class SenateCountPost2015:
-    def __init__(self, state_name, data_dir, s282=None):
+    def __init__(self, state_name, data_dir, **kwargs):
         def df(x):
             return glob.glob(os.path.join(data_dir, x))[0]
 
@@ -21,6 +21,8 @@ class SenateCountPost2015:
         self.all_candidates = AllCandidates(df('*all-candidates-*.csv.xz'), state_name)
         self.flows = SenateFlows(self.candidates, self.all_candidates)
         self.tickets_for_count = PapersForCount()
+
+        self.s282_candidates = kwargs.get('s282_candidates')
 
         def atl_flow(form):
             by_pref = {}
@@ -37,6 +39,9 @@ class SenateCountPost2015:
                     break
                 the_pref = at_pref[0]
                 for candidate_id in self.flows.flows[the_pref]:
+                    # s282: exclude candidates not elected in first (full senate) count
+                    if self.s282_candidates and candidate_id not in self.s282_candidates:
+                        continue
                     prefs.append((len(prefs) + 1, candidate_id))
             if not prefs:
                 return None
@@ -54,16 +59,20 @@ class SenateCountPost2015:
             for i in range(1, len(form) + 1):
                 at_pref = by_pref.get(i)
                 if not at_pref or len(at_pref) != 1:
-                    # must have unique prefs for 1..6, or informal
-                    if i <= 6:
-                        return None
                     break
                 candidate_id = at_pref[0]
-                prefs.append((i, candidate_id))
+                # s282: exclude candidates not elected in first (full senate) count
+                if self.s282_candidates and candidate_id not in self.s282_candidates:
+                    continue
+                prefs.append((len(prefs) + 1, candidate_id))
+            # must have unique prefs for 1..6, or informal
+            if len(prefs) < 6:
+                return None
             return Ticket((PreferenceFlow(tuple(prefs)), ))
 
         atl_n = len(self.flows.groups)
         btl_n = len(self.flows.btl)
+        informal_n = 0
         for pref in FormalPreferences(df('*formalpreferences-*.csv.xz')):
             raw_form = pref.Preferences
             assert(len(raw_form) == atl_n + btl_n)
@@ -74,13 +83,16 @@ class SenateCountPost2015:
             if form:
                 self.tickets_for_count.add_ticket(form, 1)
             else:
-                print("informal:", atl, btl)
+                informal_n += 1
+        print("note: %d ballots informal and excluded from the count" % informal_n)
 
     def get_tickets_for_count(self):
         return self.tickets_for_count
 
     def get_candidate_ids(self):
-        return self.flows.get_candidate_ids()
+        if not self.s282_candidates:
+            return self.flows.get_candidate_ids()
+        return [t for t in self.flows.get_candidate_ids() if t in self.s282_candidates]
 
     def get_parties(self):
         return self.candidates.get_parties()
@@ -96,9 +108,12 @@ class SenateCountPost2015:
 
 
 class SenateCountPre2015:
-    def __init__(self, state_name, data_dir):
+    def __init__(self, state_name, data_dir, **kwargs):
         def df(x):
             return glob.glob(os.path.join(data_dir, x))[0]
+
+        if 's282_recount' in kwargs:
+            raise Exception('s282 recount not implemented for pre2015 data')
 
         self.candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
         self.atl = SenateATL(
@@ -194,6 +209,12 @@ def read_config(config_file):
         return json.load(fd)
 
 
+def cleanup_json(out_dir):
+    for fname in glob.glob(out_dir + '/*.json'):
+        print("cleanup: removing `%s'" % (fname))
+        os.unlink(fname)
+
+
 def write_angular_json(config, out_dir):
     json_f = os.path.join(out_dir, 'count.json')
     with open(json_f, 'w') as fd:
@@ -225,13 +246,17 @@ def make_automation(answers):
     return __auto_fn
 
 
+def json_count_path(out_dir, shortname):
+    return os.path.join(out_dir, shortname + '.json')
+
+
 def get_outcome(count, count_data, base_dir, out_dir):
     test_logs_okay = True
     test_log_dir = None
     if 'verified' in count:
         test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
         print("test logs are written to: %s" % (test_log_dir))
-    outf = os.path.join(out_dir, count['shortname'] + '.json')
+    outf = json_count_path(out_dir, count['shortname'])
     print("counting %s -> %s" % (count['name'], outf))
     counter = SenateCounter(
         outf,
@@ -255,7 +280,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
     if not test_logs_okay:
         print("** TESTS FAILED **")
         sys.exit(1)
-    return counter
+    return outf
 
 
 def get_counting_method(method):
@@ -266,25 +291,37 @@ def get_counting_method(method):
         return SenateCountPost2015
 
 
+def s282_recount_get_candidates(out_dir, count, written):
+    shortname = count.get('s282_recount')
+    if not shortname:
+        return
+    fname = json_count_path(out_dir, shortname)
+    if fname not in written:
+        print("error: `%s' needed for s282 recount was not calculated yet." % (fname))
+        sys.exit(1)
+    with open(fname) as fd:
+        data = json.load(fd)
+        elected = [t['id'] for t in data['summary']['elected']]
+        return elected
+
+
 def main(config_file, out_dir):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     config = read_config(config_file)
     # global config for the angular frontend
+    cleanup_json(out_dir)
     write_angular_json(config, out_dir)
     method_cls = get_counting_method(config['method'])
     if method_cls is None:
         raise Exception("unsupported counting method `%s' requested" % (config['method']))
+    written = set()
     for count in config['count']:
+        s282_candidates = s282_recount_get_candidates(out_dir, count, written)
         print("reading data for count: `%s'" % (count['name']))
-        data = get_data(method_cls, base_dir, count)
+        data = get_data(method_cls, base_dir, count, s282_candidates=s282_candidates)
         print("determining outcome for count: `%s'" % (count['name']))
-        result = get_outcome(count, data, base_dir, out_dir)
-        if count.get('s282_recount'):
-            print("reading data for count: `%s' (s282 rerun)" % (count['name']))
-            data = get_data(method_cls, base_dir, count, s282=result.candidates_elected.keys())
-            print("determining outcome for count: `%s'" % (count['name']))
-            get_outcome(count, data, base_dir, out_dir)
-
+        outf = get_outcome(count, data, base_dir, out_dir)
+        written.add(outf)
 
 
 if __name__ == '__main__':
