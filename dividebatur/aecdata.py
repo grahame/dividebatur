@@ -146,6 +146,7 @@ class SenateATL:
     "parses AEC candidates Senate ATL data file (pre-2015)"
 
     def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
+        self.state_name = state_name
         self.gvt = {}
         self.ticket_votes = []
         self.individual_candidate_ids = []
@@ -159,18 +160,22 @@ class SenateATL:
     def load_tickets(self, candidates, gvt_csv):
         with lzma.open(gvt_csv, 'rt') as fd:
             reader = csv.reader(fd)
+            # skip introduction line
+            next(reader)
             header = next(reader)
             it = sorted(
-                named_tuple_iter('GvtRow', reader, header, Preference=int, TicketNo=int, Ticket=lambda t: t.strip()),
-                key=lambda gvt: (gvt.StateAb, ticket_sort_key(gvt.Ticket), gvt.TicketNo, gvt.Preference))
+                named_tuple_iter('GvtRow', reader, header, PreferenceNo=int, TicketNo=int, OwnerTicket=lambda t: t.strip()),
+                key=lambda gvt: (gvt.State, ticket_sort_key(gvt.OwnerTicket), gvt.TicketNo, gvt.PreferenceNo))
             for (state_ab, ticket, ticket_no), g in itertools.groupby(
-                    it, lambda gvt: (gvt.StateAb, gvt.Ticket, gvt.TicketNo)):
+                    it, lambda gvt: (gvt.State, gvt.OwnerTicket, gvt.TicketNo)):
+                if state_ab != self.state_name:
+                    continue
                 prefs = []
                 for ticket_entry in g:
                     candidate = candidates.lookup_name_party(
-                        ticket_entry.Surname, ticket_entry.GivenName, ticket_entry.Party)
+                        ticket_entry.Surname, ticket_entry.GivenNm, ticket_entry.PartyNm)
                     prefs.append(
-                        (ticket_entry.Preference, candidate.CandidateID))
+                        (ticket_entry.PreferenceNo, candidate.CandidateID))
 
                 non_none = [x for x in prefs if x[0] is not None]
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))

@@ -122,9 +122,9 @@ class SenateCountPre2015:
 
         self.candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
         self.atl = SenateATL(
-            state_name, self.candidates, df('wa-gvt.csv.xz'),
+            state_name, self.candidates, df('SenateGroupVotingTicketsDownload*.csv.xz'),
             df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
-        self.btl = SenateBTL(self.candidates, df('SenateStateBTLPreferences-*-WA.csv.xz'))
+        self.btl = SenateBTL(self.candidates, df('SenateStateBTLPreferences-*.csv.xz'))
 
         def load_tickets(ticket_obj):
             if ticket_obj is None:
