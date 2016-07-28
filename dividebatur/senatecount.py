@@ -48,6 +48,11 @@ class SenateCountPost2015:
             return Ticket((PreferenceFlow(tuple(prefs)), ))
 
         def btl_flow(form):
+            if self.s282_candidates:
+                # s282: only 273(7) to (30) apply, so don't exclude informal BTL votes
+                min_prefs = 1
+            else:
+                min_prefs = 6
             by_pref = {}
             for pref, candidate_id in zip(form, self.flows.btl):
                 if pref is None:
@@ -66,7 +71,7 @@ class SenateCountPost2015:
                     continue
                 prefs.append((len(prefs) + 1, candidate_id))
             # must have unique prefs for 1..6, or informal
-            if len(prefs) < 6:
+            if len(prefs) < min_prefs:
                 return None
             return Ticket((PreferenceFlow(tuple(prefs)), ))
 
