@@ -1,22 +1,36 @@
-<div ng-if="round.excluded">
-    <p>
-        <span class="glyphicon glyphicon-thumbs-down"></span> <candidate parties="parties" candidates="candidates" id="round.excluded.id"></candidate> excluded.
+<div ng-if="round.exclusion">
+
+  <p ng-if="round.exclusion.reason==='bulk'">
+    Bulk exclusion performed, as required in 273(13), with the following identified as under 273(13)<br/>
+    <span ng-if="round.exclusion.candidate_A">
+      Candidate A: <candidate parties="parties" candidates="candidates" id="round.exclusion.candidate_A"></candidate><br/>
+    </span>
+    <span ng-if="round.exclusion.candidate_B">
+	Candidate B: <candidate parties="parties" candidates="candidates" id="round.exclusion.candidate_B"></candidate><br/>
+    </span>
+    <span ng-if="round.exclusion.candidate_C">
+	Candidate C: <candidate parties="parties" candidates="candidates" id="round.exclusion.candidate_C"></candidate><br/>
+    </span>
+  </p>
+
+    <p ng-repeat="candidate_id in round.exclusion.candidates">
+        <span class="glyphicon glyphicon-thumbs-down"></span> <candidate parties="parties" candidates="candidates" id="candidate_id"></candidate> excluded.
     </p>
 
-    <div ng-if="round.excluded.margin">
+    <div ng-if="round.exclusion.margin">
     <p>
-        Nearest candidates (with margin of {{ round.excluded.margin | numberfmt }} votes):
+        Nearest candidates (with margin of {{ round.exclusion.margin | numberfmt }} votes):
     </p>
     <ul>
-        <li ng-repeat="id in round.excluded.next_candidates"><candidate parties="parties" candidates="candidates" id="id"></candidate></li>
+        <li ng-repeat="id in round.exclusion.next_candidates"><candidate parties="parties" candidates="candidates" id="id"></candidate></li>
     </ul>
     </div>
 
     <p>
-        Papers will be distributed from <candidate parties="parties" candidates="candidates" id="round.excluded.id"></candidate> in order:
+        Papers will be distributed from the excluded candidates in order of transfer value:
     </p>
     <ul>
-        <li ng-repeat="transfer in round.excluded.transfers">Papers with transfer value {{ transfer | f2 }}</li>
+        <li ng-repeat="transfer in round.exclusion.transfers">Papers with transfer value {{ transfer | f2 }}</li>
     </ul>
 </div>
 

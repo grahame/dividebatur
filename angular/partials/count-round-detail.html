@@ -75,9 +75,13 @@
                 at transfer value {{ round.distribution.transfer_value | f2 }}
             </p>
             <p ng-if="round.distribution.type == 'exclusion'">
-                Exclusion of candidate
-                <candidate parties="parties" candidates="candidates" id="round.distribution.candidate_id"></candidate>:
-                distribution of papers with transfer value {{ round.distribution.transfer_value | f2 }}
+              Distribution of papers with transfer value {{ round.distribution.transfer_value | f2 }}, as a result of the
+	      exclusion of:
+	      <ul>
+		<li ng-repeat="candidate_id in round.distribution.distributed_candidates">
+		    <candidate parties="parties" candidates="candidates" id="candidate_id"></candidate>
+		</li>
+	      </ul>
             </p>
 
             <h3>Outcomes</h3>

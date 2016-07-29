@@ -40,6 +40,17 @@ class PreferenceFlow:
         return "<PreferenceFlow>"
 
 
+class ExclusionReason:
+    """
+    information of interest about an exclusion.
+    simply to make this information available to users of this
+    counter, this data is not used to make any decisions which
+    affect count results.
+    """
+    def __init__(self, reason, info):
+        self.reason, self.info = reason, info
+
+
 class Ticket:
     """
     represents the form of a ballot. note that prior to 2015, it was
@@ -114,8 +125,10 @@ class PaperBundle:
 class BundleTransaction:
     """
     a group of bundles which have been transferred to a candidate
+    at a common transfer value
+
     this is stored because we may need to know the number of votes
-    contained within the bundle transfer if we later remove it
+    contained within the bundle transfer if we later distribute it
     """
 
     def __init__(self, bundles):
@@ -383,41 +396,47 @@ class SenateCounter:
             if candidate_id not in self.candidates_elected and candidate_id not in self.candidates_excluded:
                 return candidate_id
 
-    def distribute_bundle_transactions(self, from_candidate_id, bundle_transactions_to_distribute, transfer_value, candidate_aggregates):
+    def distribute_bundle_transactions(self, candidate_votes, bundle_transactions_to_distribute, transfer_value):
+        "bundle_transactions_to_distribute is an array of tuples, [(CandidateFrom, BundleTransactions)]"
+
         # figure out how many net votes, and which ticket_tpls, go where
         incoming_tickets = {}
         exhausted_papers = 0
 
-        candidate_votes = candidate_aggregates.get_candidate_votes()
+        # FIXME: this split ticket handling doesn't seem to comply with the
+        # Electoral Act, as compiled to 6 May 2013. We should be dealing
+        # with split tickets in aec_data.py; votes cast get split at a
+        # higher level, with the rounded off papers assigned between
+        # the candidates in a decision by the AEO
 
         # remaining aware of split tickets, determine how many papers go to
         # each candidate; effectively we unpack each bundle into preference flows,
         # split as needed, and then repack into new bundles
-        votes_from = 0
-        for bundle_transaction in bundle_transactions_to_distribute:
-            # take the bundle away from the candidate
-            votes_from += bundle_transaction.get_votes()
-            self.candidate_bundle_transactions.transfer_from(from_candidate_id, bundle_transaction)
+        for from_candidate_id, bundle_transactions in bundle_transactions_to_distribute:
+            for bundle_transaction in bundle_transactions:
+                # take the bundle away from the candidate
+                candidate_votes[from_candidate_id] -= bundle_transaction.get_votes()
+                self.candidate_bundle_transactions.transfer_from(from_candidate_id, bundle_transaction)
 
-            for bundle in bundle_transaction:
-                to_candidates = {}
-                for preference_flow in bundle.get_ticket():
-                    to_candidate = self.get_next_preference(preference_flow)
-                    if to_candidate is None:
-                        exhausted_papers += bundle.get_size()
-                        continue
-                    if to_candidate not in to_candidates:
-                        to_candidates[to_candidate] = []
-                    to_candidates[to_candidate].append(preference_flow)
+                for bundle in bundle_transaction:
+                    # determine the candidate(s) that this bundle of papers flows to
+                    to_candidates = {}
+                    for preference_flow in bundle.get_ticket():
+                        to_candidate = self.get_next_preference(preference_flow)
+                        if to_candidate is None:
+                            exhausted_papers += bundle.get_size()
+                            continue
+                        if to_candidate not in to_candidates:
+                            to_candidates[to_candidate] = []
+                        to_candidates[to_candidate].append(preference_flow)
 
-                for to_candidate in to_candidates:
-                    preference_flows = to_candidates[to_candidate]
-                    frac_of_total = fractions.Fraction(len(preference_flows), len(bundle.get_ticket()))
-                    tickets_count = int(frac_of_total * bundle.get_size())
-                    if to_candidate not in incoming_tickets:
-                        incoming_tickets[to_candidate] = []
-                    incoming_tickets[to_candidate].append((tuple(preference_flows), tickets_count))
-        candidate_votes[from_candidate_id] -= votes_from
+                    for to_candidate in to_candidates:
+                        preference_flows = to_candidates[to_candidate]
+                        frac_of_total = fractions.Fraction(len(preference_flows), len(bundle.get_ticket()))
+                        tickets_count = int(frac_of_total * bundle.get_size())
+                        if to_candidate not in incoming_tickets:
+                            incoming_tickets[to_candidate] = []
+                        incoming_tickets[to_candidate].append((tuple(preference_flows), tickets_count))
 
         for candidate_id in sorted(incoming_tickets, key=self.candidate_order):
             bundles_moving = []
@@ -428,7 +447,7 @@ class SenateCounter:
             candidate_votes[candidate_id] += bundle_transaction.get_votes()
 
         exhausted_votes = int(exhausted_papers * transfer_value)
-        return candidate_votes, exhausted_votes, exhausted_papers
+        return exhausted_votes, exhausted_papers
 
     def elect(self, round_log, round_number, candidate_aggregates, candidate_id):
         self.candidates_elected[candidate_id] = {
@@ -441,63 +460,74 @@ class SenateCounter:
             assert(excess_votes >= 0)
             transfer_value = fractions.Fraction(excess_votes, self.candidate_bundle_transactions.paper_count(candidate_id))
             assert(transfer_value >= 0)
-            self.election_distributions_pending.append((candidate_id, transfer_value))
+            self.election_distributions_pending.append((candidate_id, transfer_value, excess_votes))
             transfer = excess_votes, float(transfer_value)
         round_log.add_elected(candidate_id, len(self.candidates_elected), transfer)
 
-    def exclude(self, round_log, round_number, candidate_id, next_to_min_votes, min_votes, next_candidates):
-        margin = None
-        if next_to_min_votes is not None:
-            margin = next_to_min_votes - min_votes
-        self.candidates_excluded[candidate_id] = {
-            'order': len(self.candidates_excluded) + 1,
-            'round': round_number,
-            'margin': margin or 0
-        }
-        transfer_values = set()
-        for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
-            transfer_values.add(bundle_transaction.get_transfer_value())
+    def exclude_candidates(self, candidates, round_log, round_number, reason):
+        # transfers to run, and the candidates distributed in them
+        transfers_applicable = {}
+        for candidate_id in candidates:
+            exclusion_info = {
+                'order': len(self.candidates_excluded) + 1,
+                'reason': reason.reason,
+                'round': round_number
+            }
+            exclusion_info.update(reason.info)
+            self.candidates_excluded[candidate_id] = exclusion_info
+            for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
+                value = bundle_transaction.get_transfer_value()
+                if value not in transfers_applicable:
+                    transfers_applicable[value] = set()
+                transfers_applicable[value].add(candidate_id)
 
-        round_log.set_excluded(
-            candidate_id,
-            next_candidates,
-            margin,
-            [float(t) for t in reversed(sorted(transfer_values))])
+        transfer_values = list(reversed(sorted(transfers_applicable)))
+        round_log.set_exclusion(
+            candidates,
+            transfer_values,
+            reason)
 
-        for transfer_value in reversed(sorted(transfer_values)):
-            self.exclusion_distributions_pending.append((candidate_id, transfer_value))
+        for transfer_value in transfer_values:
+            self.exclusion_distributions_pending.append((list(transfers_applicable[transfer_value]), transfer_value))
 
     def process_election(self, round_log, distribution, last_total):
-        distributed_candidate_id, transfer_value = distribution
+        distributed_candidate_id, transfer_value, excess_votes = distribution
         round_log.set_distribution({
             'type': 'election',
             'candidate_id': distributed_candidate_id,
             'transfer_value': float(transfer_value)})
-        total, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
-            distributed_candidate_id,
-            self.candidate_bundle_transactions.get(distributed_candidate_id),
-            transfer_value,
-            last_total)
-        total[distributed_candidate_id] = self.quota
-        return distributed_candidate_id, total, exhausted_votes, exhausted_papers
+
+        candidate_votes = last_total.get_candidate_votes()
+        bundle_transactions_to_distribute = [(distributed_candidate_id, self.candidate_bundle_transactions.get(distributed_candidate_id))]
+        exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
+            candidate_votes,
+            bundle_transactions_to_distribute,
+            transfer_value)
+        candidate_votes[distributed_candidate_id] = self.quota
+        return distributed_candidate_id, candidate_votes, exhausted_votes, exhausted_papers
 
     def process_exclusion(self, round_log, distribution, last_total):
-        distributed_candidate_id, transfer_value = distribution
+        distributed_candidates, transfer_value = distribution
         round_log.set_distribution({
             'type': 'exclusion',
-            'candidate_id': distributed_candidate_id,
+            'distributed_candidates': distributed_candidates,
             'transfer_value': float(transfer_value)})
-        bundles_to_distribute = []
-        for bundle in self.candidate_bundle_transactions.get(distributed_candidate_id):
-            if bundle.get_transfer_value() == transfer_value:
-                bundles_to_distribute.append(bundle)
 
-        candidate_votes, exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
-            distributed_candidate_id,
-            bundles_to_distribute,
-            transfer_value,
-            last_total)
-        return distributed_candidate_id, candidate_votes, exhausted_votes, exhausted_papers
+        candidate_votes = last_total.get_candidate_votes()
+        total_exhausted_votes, total_exhausted_papers = 0, 0
+        bundle_transactions_to_distribute = []
+        for candidate_id in distributed_candidates:
+            bundle_transactions = [t for t in self.candidate_bundle_transactions.get(candidate_id) if t.get_transfer_value() == transfer_value]
+            bundle_transactions_to_distribute.append((candidate_id, bundle_transactions))
+
+        exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
+            candidate_votes,
+            bundle_transactions_to_distribute,
+            transfer_value)
+        total_exhausted_votes += exhausted_votes
+        total_exhausted_papers += exhausted_papers
+
+        return distributed_candidates, candidate_votes, total_exhausted_votes, total_exhausted_papers
 
     def have_pending_exclusion_distribution(self):
         return len(self.exclusion_distributions_pending) > 0
@@ -604,7 +634,7 @@ class SenateCounter:
             entry.log("[%3d] - %s" % (idx + 1, self.candidate_title(candidate_id)), echo=True)
         return sorted_candidate_ids[int(self.input_or_automated(entry, question)) - 1]
 
-    def exclude_a_candidate(self, round_log, round_number, candidate_aggregates):
+    def candidate_to_exclude(self, round_log, candidate_aggregates):
         def eligible(candidate_id):
             return candidate_id not in self.candidates_elected and candidate_id not in self.candidates_excluded
 
@@ -639,7 +669,139 @@ class SenateCounter:
                 next_to_min_votes = min(candidate_aggregates.get_vote_count(t) for t in candidate_ids if candidate_aggregates.get_vote_count(t) > min_votes)
                 candidates_next_excluded = [t for t in candidate_ids if candidate_aggregates.get_vote_count(t) == next_to_min_votes]
 
-        self.exclude(round_log, round_number, excluded_candidate_id, next_to_min_votes, min_votes, candidates_next_excluded)
+        margin = None
+        if next_to_min_votes is not None:
+            margin = next_to_min_votes - min_votes
+        return excluded_candidate_id, ExclusionReason("exclusion", {
+            'next_to_min_votes': next_to_min_votes,
+            'min_votes': min_votes,
+            'margin': margin or 0,
+            'candidates_next_excluded': candidates_next_excluded
+        })
+
+    def get_votes_to_candidates(self, candidates, candidate_aggregates):
+        candidate_votes = candidate_aggregates.get_candidate_votes()
+        by_votes = {}
+        for candidate_id in candidates:
+            votes = candidate_votes[candidate_id]
+            if votes not in by_votes:
+                by_votes[votes] = []
+            by_votes[votes].append(candidate_id)
+        return by_votes
+
+    def get_candidate_notional_votes(self, candidate_aggregates, adjustment):
+        "aggregate of vote received by each candidate, and the votes received by any candidate lower in the poll"
+        continuing = self.get_continuing_candidates(candidate_aggregates)
+        candidates_notional = {}
+        by_votes = self.get_votes_to_candidates(continuing, candidate_aggregates)
+        total = adjustment
+        for votes, candidates in sorted(by_votes.items(), key=lambda x: x[0]):
+            for candidate_id in candidates:
+                candidates_notional[candidate_id] = total + votes
+            total += votes * len(candidates)
+        return candidates_notional
+
+    def get_leading_and_vacancy_shortfall(self, candidate_aggregates):
+        continuing = self.get_continuing_candidates(candidate_aggregates)
+        candidate_votes = candidate_aggregates.get_candidate_votes()
+        shortfalls = []
+        for candidate_id in continuing:
+            shortfall = self.quota - candidate_votes[candidate_id]
+            assert(shortfall > 0)
+            shortfalls.append(shortfall)
+        shortfalls.sort()
+        spots_left = self.vacancies - len(self.candidates_elected)
+        return shortfalls[0], sum(shortfalls[:spots_left])
+
+    def determine_bulk_exclusions(self, candidate_aggregates):
+        "determine candidates who may be bulk excluded, under 273(13)"
+        # adjustment as under (13C) - seems to only apply if more than one candidate was elected in a round
+        continuing = self.get_continuing_candidates(candidate_aggregates)
+        candidate_votes = candidate_aggregates.get_candidate_votes()
+        by_votes = self.get_votes_to_candidates(continuing, candidate_aggregates)
+        adjustment = sum(excess_votes for _, _, excess_votes in self.election_distributions_pending)
+        candidate_notional_votes = self.get_candidate_notional_votes(candidate_aggregates, adjustment)
+        leading_shortfall, vacancy_shortfall = self.get_leading_and_vacancy_shortfall(candidate_aggregates)
+
+        def determine_candidate_A():
+            # notional votes >= vacancy shortfall
+            eligible = [candidate_id for candidate_id, notional in candidate_notional_votes.items() if notional >= vacancy_shortfall]
+            if len(eligible) == 0:
+                return None
+            # lowest in the poll: tie is irrelevant
+            eligible.sort(key=lambda candidate_id: candidate_votes[candidate_id])
+            return eligible[0]
+
+        sorted_votes = list(sorted(by_votes.keys()))
+
+        def notional_lower_than_higher(candidate_id):
+            "check notional votes of candidate is lower than the number of votes of the candidate standing immediately higher"
+            votes = candidate_votes[candidate_id]
+            votes_idx = sorted_votes.index(votes)
+            # no higher candidate
+            if votes_idx == len(sorted_votes) - 1:
+                return False
+            # legislation ambiguous, but if there's a tie above us let's check all the candidates on that count
+            notional = candidate_notional_votes[candidate_id]
+            higher_votes = sorted_votes[votes_idx + 1]
+            acceptable = all(notional < candidate_votes[t] for t in by_votes[higher_votes])
+            return acceptable
+
+        def highest(eligible):
+            "return the highest ranked candidate in candidates, by vote. if a tie, or list empty, return None"
+            if not eligible:
+                return
+            binned = self.get_votes_to_candidates(eligible, candidate_aggregates)
+            possible = binned[max(binned)]
+            if len(possible) == 1:
+                return possible[0]
+
+        def determine_candidate_B(candidate_A):
+            if candidate_A is not None:
+                A_votes = candidate_votes[candidate_A]
+                eligible = [candidate_id for candidate_id in continuing if candidate_votes[candidate_id] < A_votes]
+            else:
+                eligible = [candidate_id for candidate_id in continuing if candidate_notional_votes[candidate_id] < vacancy_shortfall]
+            eligible = [candidate_id for candidate_id in eligible if notional_lower_than_higher(candidate_id)]
+            return highest(eligible)
+
+        def determine_candidate_C():
+            eligible = [candidate_id for candidate_id in continuing if candidate_notional_votes[candidate_id] < leading_shortfall]
+            # the candidate of those eligible which stands highest in the poll
+            eligible.sort(key=lambda candidate_id: candidate_votes[candidate_id])
+            return highest(eligible)
+
+        def candidates_lte(candidate_id):
+            votes = candidate_votes[candidate_id]
+            lower_votes = [t for t in by_votes.keys() if t < votes]
+            to_exclude = [candidate_id]
+            for vote in lower_votes:
+                to_exclude += [candidate_id for candidate_id in by_votes[vote] if candidate_id in continuing]
+            return to_exclude
+
+        # candidate A, B, C as under (13A)(a)
+        to_exclude = None
+        candidate_A = determine_candidate_A()
+        candidate_B = determine_candidate_B(candidate_A)
+        candidate_C = None
+        if candidate_B:
+            candidate_B_votes = candidate_votes[candidate_B]
+            if candidate_B_votes < leading_shortfall:
+                to_exclude = candidates_lte(candidate_B)
+            else:
+                candidate_C = determine_candidate_C()
+                if candidate_C:
+                    to_exclude = candidates_lte(candidate_C)
+        if to_exclude and len(to_exclude) == 1:
+            to_exclude = None
+        return to_exclude, ExclusionReason("bulk", {
+            "candidate_A": candidate_A,
+            "candidate_B": candidate_B,
+            "candidate_C": candidate_C
+        })
+
+    def get_continuing_candidates(self, candidate_aggregates):
+        return list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
 
     def process_round(self, round_number, round_log):
         if round_number > 1:
@@ -650,20 +812,22 @@ class SenateCounter:
             last_candidate_aggregates = None
             exhausted_votes = exhausted_papers = 0
 
+        # TODO: remove this variable, it's highly confusing and a source of bugs
+        affected = set()
+
         #
         # we will always have something to do in each round.
         # we maintain two queues - a queue of exclusion distributions,
         # a queue of election distributions. the exclusion distribution
         # queue takes precedence.
         #
-        affected = set()
         if round_number == 1:
-            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
-                self.get_initial_totals()
+            candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = self.get_initial_totals()
         elif self.have_pending_exclusion_distribution():
-            candidate_id, candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
+            distributed_candidates, candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
                 self.process_exclusion_distribution(round_log, last_candidate_aggregates)
-            affected.add(candidate_id)
+            for candidate_id in distributed_candidates:
+                affected.add(candidate_id)
         elif len(self.election_distributions_pending) > 0:
             candidate_id, candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
                 self.process_election_distribution(round_log, last_candidate_aggregates)
@@ -671,16 +835,21 @@ class SenateCounter:
         else:
             raise Exception("No distribution or exclusion this round. Nothing to do - unreachable.")
 
-        candidate_aggregates = CandidateAggregates(self.total_papers, candidate_votes, self.candidate_bundle_transactions.candidate_paper_count(),
-                                                   exhausted_votes + votes_exhausted_in_round, exhausted_papers + papers_exhausted_in_round)
-        self.round_candidate_aggregates.append(candidate_aggregates)
+        # determine new candidate aggregates, after application of actions
+        candidate_aggregates = CandidateAggregates(
+            self.total_papers,
+            candidate_votes,
+            self.candidate_bundle_transactions.candidate_paper_count(),
+            exhausted_votes + votes_exhausted_in_round,
+            exhausted_papers + papers_exhausted_in_round)
 
+        # logging
+        self.round_candidate_aggregates.append(candidate_aggregates)
         self.json_log(round_number, candidate_aggregates)
 
-        #
         # determine actions for this round (if any)
         #
-        # if anyone has a quota, elect them; otherwise,  if we're not distribution over-quota,
+        # if anyone has a quota, elect them; otherwise, if we're not distributing an over-quota,
         # and we're not distributing the result of an exclusion, find someone to exclude (or
         # go with various end-state catch-alls)
         #
@@ -692,8 +861,10 @@ class SenateCounter:
                     affected.add(candidate_id)
                     if len(self.candidates_elected) == self.vacancies:
                         return False
-            elif not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
-                in_the_running = list(set(self.candidate_ids_display(candidate_aggregates)) - set(self.candidates_elected) - set(self.candidates_excluded))
+                return True
+
+            if not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
+                in_the_running = self.get_continuing_candidates(candidate_aggregates)
                 still_to_elect = self.vacancies - len(self.candidates_elected)
                 # section 273(18); if we're down to N candidates in the running, with N vacancies, the remaining candidates are elected
                 if len(in_the_running) == still_to_elect:
@@ -726,11 +897,24 @@ class SenateCounter:
                             self.elect(round_log, round_number, candidate_aggregates, candidate_b)
                             affected.add(candidate_b)
                     return False
-                # if a distribution doesn't generate any
-                while True:
-                    self.exclude_a_candidate(round_log, round_number, candidate_aggregates)
-                    if self.have_pending_exclusion_distribution():
-                        break
+
+            if not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
+                # # FIXME: I believe we can do a bulk exclusion, even if there is an overquota distribution pending
+                bulk_exclude, reason = self.determine_bulk_exclusions(candidate_aggregates)
+                if bulk_exclude:
+                    self.exclude_candidates(bulk_exclude, round_log, round_number, reason)
+                    affected.update(bulk_exclude)
+
+                # if we exclude a candidate with no papers, there may not be a distribution of
+                # preferences - which would leave the next round of the count with nothing to do
+                # hence, we loop until there's an exclusion round to process
+                #
+                # note subtle: if bulk exclusion above didn't trigger a distribution, this code
+                # will cascade through
+                while not self.have_pending_exclusion_distribution():
+                    excluded_candidate, reason = self.candidate_to_exclude(round_log, candidate_aggregates)
+                    self.exclude_candidates([excluded_candidate], round_log, round_number, reason)
+                    affected.add(excluded_candidate)
         finally:
             # we want to log elected candidates from this round
             round_log.set_count(self.log_round_count(round_log, affected, last_candidate_aggregates, candidate_aggregates))

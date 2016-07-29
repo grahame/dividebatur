@@ -37,7 +37,7 @@ divideBatur.controller('CountRoundDetailCtrl', ['$scope', '$routeParams', '$docu
       $scope.rounds = data.rounds.length;
       $scope.first_round = $scope.round.number == 1;
       $scope.last_round = $scope.round.number == data.rounds.length;
-      $scope.no_outcomes = ($scope.round.elected.length == 0) && (!$scope.round.excluded) && ($scope.round.note.length == 0);
+      $scope.no_outcomes = ($scope.round.elected.length == 0) && (!$scope.round.exclusion) && ($scope.round.note.length == 0);
 
       // this seems wrong, come back to it...
       // $document.bind('keypress', function(event) {

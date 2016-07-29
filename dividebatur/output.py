@@ -27,7 +27,7 @@ class RoundLog(LogEntry):
         self.number = number
         self.note = []
         self.elected = []
-        self.excluded = None
+        self.exclusion = None
         self.distribution = None
         self.count = None
 
@@ -36,7 +36,7 @@ class RoundLog(LogEntry):
             'number': self.number,
             'note': self.note,
             'elected': self.elected,
-            'excluded': self.excluded,
+            'exclusion': self.exclusion,
             'distribution': self.distribution,
             'count': self.count
         }
@@ -58,13 +58,14 @@ class RoundLog(LogEntry):
             'transfer': t
         })
 
-    def set_excluded(self, candidate_id, next_candidates, margin, transfer_values):
-        self.excluded = {
-            'id': candidate_id,
-            'margin': margin,
-            'next_candidates': next_candidates,
-            'transfers': transfer_values
+    def set_exclusion(self, candidates, transfers, reason):
+        info = {
+            'candidates': candidates,
+            'reason': reason.reason,
+            'transfers': [float(t) for t in transfers]
         }
+        info.update(reason.info)
+        self.exclusion = info
 
     def add_note(self, message):
         self.note.append(message)
@@ -99,4 +100,4 @@ class JsonOutput:
             'summary': self.summary,
         }
         with open(self.fname, 'w') as fd:
-            json.dump(obj, fd)
+            json.dump(obj, fd, indent=4)
