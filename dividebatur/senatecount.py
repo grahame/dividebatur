@@ -270,7 +270,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
     if not test_logs_okay:
         print("** TESTS FAILED **")
         sys.exit(1)
-    return outf
+    return (outf , counter.output.summary)
 
 
 def get_input_method(format):
@@ -314,7 +314,7 @@ def main(config_file, out_dir):
         print("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, s282_candidates=s282_candidates)
         print("determining outcome for count: `%s'" % (count['name']))
-        outf = get_outcome(count, data, base_dir, out_dir)
+        outf,__ = get_outcome(count, data, base_dir, out_dir)
         written.add(outf)
 
 
