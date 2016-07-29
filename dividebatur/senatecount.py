@@ -281,6 +281,10 @@ def get_input_method(format):
         return SenateCountPost2015
 
 
+def counting_method_valid(method_cls):
+    if method_cls is None:
+        raise Exception("unsupported AEC data format '%s' requested" % (aec_data_config['format']))
+
 def s282_recount_get_candidates(out_dir, count, written):
     shortname = count.get('s282_recount')
     if not shortname:
@@ -305,8 +309,7 @@ def main(config_file, out_dir):
     for count in config['count']:
         aec_data_config = count['aec-data']
         input_cls = get_input_method(aec_data_config['format'])
-        if input_cls is None:
-            raise Exception("unsupported AEC data format '%s' requested" % (config['method']))
+        counting_method_valid(input_cls)
         s282_candidates = s282_recount_get_candidates(out_dir, count, written)
         print("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, s282_candidates=s282_candidates)
