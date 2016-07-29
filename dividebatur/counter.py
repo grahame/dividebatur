@@ -650,6 +650,12 @@ class SenateCounter:
             last_candidate_aggregates = None
             exhausted_votes = exhausted_papers = 0
 
+        #
+        # we will always have something to do in each round.
+        # we maintain two queues - a queue of exclusion distributions,
+        # a queue of election distributions. the exclusion distribution
+        # queue takes precedence.
+        #
         affected = set()
         if round_number == 1:
             candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
@@ -671,6 +677,13 @@ class SenateCounter:
 
         self.json_log(round_number, candidate_aggregates)
 
+        #
+        # determine actions for this round (if any)
+        #
+        # if anyone has a quota, elect them; otherwise,  if we're not distribution over-quota,
+        # and we're not distributing the result of an exclusion, find someone to exclude (or
+        # go with various end-state catch-alls)
+        #
         try:
             elected = self.elected_candidates_in_order(round_log, candidate_aggregates)
             if len(elected) > 0:
