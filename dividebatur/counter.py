@@ -12,6 +12,7 @@ class PreferenceFlow:
     """
 
     def __init__(self, preferences):
+        "preferences is a list, [(PreferenceNo, CandidateId), ...]"
         self.preferences = tuple(sorted(preferences, key=lambda x: x[1]))
         self.transfer_value = fractions.Fraction(1, 1)
         self.transfers = []
@@ -40,6 +41,16 @@ class PreferenceFlow:
 
 
 class Ticket:
+    """
+    represents the form of a ballot. note that prior to 2015, it was
+    possible for a ballot to have more than one preference flow, in
+    the case of "split tickets". This only ever occurred above-the-line;
+    A party could lodge more than one Group Voting Ticket, which then applied
+    to the ballots cast above the line for that Group.
+
+    This class is hashable, so that PapersForCount can sum up equivalent papers
+    (to reduce memory use, and speed up the count.)
+    """
 
     def __init__(self, preference_flows):
         self.preference_flows = preference_flows
@@ -156,6 +167,7 @@ class CandidateBundleTransactions:
         # handle split first preference
         bundles_to_candidate = {}
         for ticket, count in papers_for_count:
+            # first preferences, by flow
             prefs = {}
             for preference_flow in ticket:
                 preference = preference_flow.get_preference()
@@ -163,13 +175,14 @@ class CandidateBundleTransactions:
                     prefs[preference] = []
                 prefs[preference].append(preference_flow)
             for pref in prefs:
-                if pref is not None:
-                    preference_flows = prefs[pref]
-                    mult = fractions.Fraction(len(preference_flows), len(ticket))
-                    pref_count = int(mult * count)
-                    if pref not in bundles_to_candidate:
-                        bundles_to_candidate[pref] = []
-                    bundles_to_candidate[pref].append(PaperBundle(Ticket(tuple(preference_flows)), pref_count, fractions.Fraction(1, 1)))
+                if pref is None:
+                    continue
+                preference_flows = prefs[pref]
+                mult = fractions.Fraction(len(preference_flows), len(ticket))
+                pref_count = int(mult * count)
+                if pref not in bundles_to_candidate:
+                    bundles_to_candidate[pref] = []
+                bundles_to_candidate[pref].append(PaperBundle(Ticket(tuple(preference_flows)), pref_count, fractions.Fraction(1, 1)))
         for candidate_id in bundles_to_candidate:
             self.candidate_bundle_transactions[candidate_id].append(BundleTransaction(bundles_to_candidate[candidate_id]))
 
