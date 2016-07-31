@@ -13,12 +13,9 @@ from .aecdata import Candidates, SenateATL, SenateBTL, AllCandidates, SenateFlow
 
 
 class SenateCountPost2015:
-    def __init__(self, state_name, data_dir, **kwargs):
-        def df(x):
-            return glob.glob(os.path.join(data_dir, x))[0]
-
-        self.candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
-        self.all_candidates = AllCandidates(df('*all-candidates-*.csv.xz'), state_name)
+    def __init__(self, state_name, get_input_file, **kwargs):
+        self.candidates = Candidates(get_input_file('senate-candidates'))
+        self.all_candidates = AllCandidates(get_input_file('all-candidates'), state_name)
         self.flows = SenateFlows(self.candidates, self.all_candidates)
         self.tickets_for_count = PapersForCount()
 
@@ -78,7 +75,7 @@ class SenateCountPost2015:
         atl_n = len(self.flows.groups)
         btl_n = len(self.flows.btl)
         informal_n = 0
-        for pref in FormalPreferences(df('*formalpreferences-*.csv.xz')):
+        for pref in FormalPreferences(get_input_file('formal-preferences')):
             raw_form = pref.Preferences
             assert(len(raw_form) == atl_n + btl_n)
             # BTL takes precedence
@@ -113,18 +110,17 @@ class SenateCountPost2015:
 
 
 class SenateCountPre2015:
-    def __init__(self, state_name, data_dir, **kwargs):
-        def df(x):
-            return glob.glob(os.path.join(data_dir, x))[0]
-
+    def __init__(self, state_name, get_input_file, **kwargs):
         if 's282_recount' in kwargs:
             raise Exception('s282 recount not implemented for pre2015 data')
 
-        self.candidates = Candidates(df('SenateCandidatesDownload-*.csv.xz'))
+        self.candidates = Candidates(get_input_file('senate-candidates'))
         self.atl = SenateATL(
-            state_name, self.candidates, df('SenateGroupVotingTicketsDownload*.csv.xz'),
-            df('SenateFirstPrefsByStateByVoteTypeDownload-*.csv.xz'))
-        self.btl = SenateBTL(self.candidates, df('SenateStateBTLPreferences-*.csv.xz'))
+            state_name,
+            self.candidates,
+            get_input_file('group-voting-tickets'),
+            get_input_file('first-preferences'))
+        self.btl = SenateBTL(self.candidates, get_input_file('btl-preferences'))
 
         def load_tickets(ticket_obj):
             if ticket_obj is None:
@@ -220,9 +216,12 @@ def write_angular_json(config, out_dir):
         json.dump(obj, fd)
 
 
-def get_data(method_cls, base_dir, count, **kwargs):
-    data_dir = os.path.join(base_dir, count['path'])
-    return method_cls(count['state'], data_dir, **kwargs)
+def get_data(input_cls, base_dir, count, **kwargs):
+    aec_data = count['aec-data']
+
+    def input_file(name):
+        return os.path.join(base_dir, aec_data[name])
+    return input_cls(count['state'], input_file, **kwargs)
 
 
 def make_automation(answers):
@@ -275,11 +274,11 @@ def get_outcome(count, count_data, base_dir, out_dir):
     return outf
 
 
-def get_counting_method(method):
+def get_input_method(format):
     # determine the counting method
-    if method == 'AusSenatePre2015':
+    if format == 'AusSenatePre2015':
         return SenateCountPre2015
-    elif method == 'AusSenatePost2015':
+    elif format == 'AusSenatePost2015':
         return SenateCountPost2015
 
 
@@ -303,14 +302,15 @@ def main(config_file, out_dir):
     # global config for the angular frontend
     cleanup_json(out_dir)
     write_angular_json(config, out_dir)
-    method_cls = get_counting_method(config['method'])
-    if method_cls is None:
-        raise Exception("unsupported counting method `%s' requested" % (config['method']))
     written = set()
     for count in config['count']:
+        aec_data_config = count['aec-data']
+        input_cls = get_input_method(aec_data_config['format'])
+        if input_cls is None:
+            raise Exception("unsupported AEC data format '%s' requested" % (config['method']))
         s282_candidates = s282_recount_get_candidates(out_dir, count, written)
         print("reading data for count: `%s'" % (count['name']))
-        data = get_data(method_cls, base_dir, count, s282_candidates=s282_candidates)
+        data = get_data(input_cls, base_dir, count, s282_candidates=s282_candidates)
         print("determining outcome for count: `%s'" % (count['name']))
         outf = get_outcome(count, data, base_dir, out_dir)
         written.add(outf)

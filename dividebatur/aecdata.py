@@ -1,4 +1,3 @@
-import lzma
 import csv
 import itertools
 from collections import namedtuple
@@ -40,7 +39,7 @@ class AllCandidates:
 
     def load(self, csv_file):
         self.groups = {}
-        with lzma.open(csv_file, 'rt') as fd:
+        with open(csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
             for candidate in sorted(named_tuple_iter('AllCandidate', reader, header, ballot_position=int), key=lambda row: (ticket_sort_key(row.ticket), row.ballot_position)):
@@ -100,7 +99,7 @@ class FormalPreferences:
         def parse_prefs(s):
             ", delimited, with * and / meaning 1"
             return [int_or_none(t) for t in s.replace('*', '1').replace('/', '1').split(',')]
-        with lzma.open(self._csv_file, 'rt') as fd:
+        with open(self._csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
             dummy = next(reader)
@@ -119,7 +118,7 @@ class Candidates:
         self.load(candidates_csv)
 
     def load(self, candidates_csv):
-        with lzma.open(candidates_csv, 'rt') as fd:
+        with open(candidates_csv, 'rt') as fd:
             reader = csv.reader(fd)
             next(reader)  # skip the version
             header = next(reader)
@@ -158,7 +157,7 @@ class SenateATL:
         self.load_first_preferences(state_name, firstprefs_csv)
 
     def load_tickets(self, candidates, gvt_csv):
-        with lzma.open(gvt_csv, 'rt') as fd:
+        with open(gvt_csv, 'rt') as fd:
             reader = csv.reader(fd)
             # skip introduction line
             next(reader)
@@ -184,7 +183,7 @@ class SenateATL:
                 self.gvt[ticket].append(Ticket(tuple(prefs)))
 
     def load_first_preferences(self, state_name, firstprefs_csv):
-        with lzma.open(firstprefs_csv, 'rt') as fd:
+        with open(firstprefs_csv, 'rt') as fd:
             reader = csv.reader(fd)
             next(reader)  # skip the version
             header = next(reader)
@@ -211,7 +210,7 @@ class SenateATL:
             remainder_pattern = [1] * remainder + [0] * (size - remainder)
             remainder_pattern = [0] * (size - remainder) + [1] * (remainder)
             if remainder:
-                print("NOTE: GVT split ticket remainder, AEO input needed: ", remainder_pattern)
+                print("NOTE: GVT split ticket remainder, AEO input needed:", remainder_pattern)
             # remainder_pattern = [0] * (size-remainder) + [1] * remainder
             for ticket, extra in zip(self.gvt[group], remainder_pattern):
                 yield ticket, int(n / size) + extra
@@ -239,7 +238,7 @@ class SenateBTL:
         self.load_btl(candidates, btl_csv)
 
     def load_btl(self, candidates, btl_csv):
-        with lzma.open(btl_csv, 'rt') as fd:
+        with open(btl_csv, 'rt') as fd:
             reader = csv.reader(fd)
             next(reader)  # skip the version
             header = next(reader)
