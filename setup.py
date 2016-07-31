@@ -11,7 +11,7 @@ setup(
     keywords="stv senate voting",
     url="https://github.com/grahame/dividebatur",
     name="dividebatur",
-    version="0.4.0",
+    version="0.5.0",
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     extras_require={
         'dev': dev_requires
