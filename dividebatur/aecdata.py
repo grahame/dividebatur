@@ -209,8 +209,9 @@ class SenateATL:
             remainder = n % size
             # TODO: implement some randomization here
             remainder_pattern = [1] * remainder + [0] * (size - remainder)
+            remainder_pattern = [0] * (size - remainder) + [1] * (remainder)
             if remainder:
-                print("NOTE: GVT remainder AEO input needed: ", remainder_pattern)
+                print("NOTE: GVT split ticket remainder, AEO input needed: ", remainder_pattern)
             # remainder_pattern = [0] * (size-remainder) + [1] * remainder
             for ticket, extra in zip(self.gvt[group], remainder_pattern):
                 yield ticket, int(n / size) + extra
