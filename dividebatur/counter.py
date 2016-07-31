@@ -5,10 +5,13 @@ import os
 from .output import JsonOutput, RoundLog, LogEntry
 
 
-class PreferenceFlow:
+class Ticket:
     """
     a preference flow; describes a preference flow and maintains state for it
     during the count
+
+    This class is hashable, so that PapersForCount can sum up equivalent papers
+    (to reduce memory use, and speed up the count.)
     """
 
     def __init__(self, preferences):
@@ -37,7 +40,7 @@ class PreferenceFlow:
             return matches[0]
 
     def __repr__(self):
-        return "<PreferenceFlow>"
+        return "<Ticket>"
 
 
 class ExclusionReason:
@@ -49,40 +52,6 @@ class ExclusionReason:
     """
     def __init__(self, reason, info):
         self.reason, self.info = reason, info
-
-
-class Ticket:
-    """
-    represents the form of a ballot. note that prior to 2015, it was
-    possible for a ballot to have more than one preference flow, in
-    the case of "split tickets". This only ever occurred above-the-line;
-    A party could lodge more than one Group Voting Ticket, which then applied
-    to the ballots cast above the line for that Group.
-
-    This class is hashable, so that PapersForCount can sum up equivalent papers
-    (to reduce memory use, and speed up the count.)
-    """
-
-    def __init__(self, preference_flows):
-        self.preference_flows = preference_flows
-        assert(isinstance(preference_flows, tuple))
-        for preference_flow in self.preference_flows:
-            assert(isinstance(preference_flow, PreferenceFlow))
-
-    def __eq__(self, other):
-        return self.preference_flows == other.preference_flows
-
-    def __hash__(self):
-        return hash(self.preference_flows)
-
-    def __iter__(self):
-        return iter(self.preference_flows)
-
-    def __len__(self):
-        return len(self.preference_flows)
-
-    def __repr__(self):
-        return "<Ticket>"
 
 
 class PapersForCount:
@@ -177,25 +146,15 @@ class CandidateBundleTransactions:
         for candidate_id in candidate_ids:
             self.candidate_bundle_transactions[candidate_id] = []
         # go through each ticket and count in the papers and assign by first preference
-        # handle split first preference
         bundles_to_candidate = {}
         for ticket, count in papers_for_count:
             # first preferences, by flow
-            prefs = {}
-            for preference_flow in ticket:
-                preference = preference_flow.get_preference()
-                if preference not in prefs:
-                    prefs[preference] = []
-                prefs[preference].append(preference_flow)
-            for pref in prefs:
-                if pref is None:
-                    continue
-                preference_flows = prefs[pref]
-                mult = fractions.Fraction(len(preference_flows), len(ticket))
-                pref_count = int(mult * count)
-                if pref not in bundles_to_candidate:
-                    bundles_to_candidate[pref] = []
-                bundles_to_candidate[pref].append(PaperBundle(Ticket(tuple(preference_flows)), pref_count, fractions.Fraction(1, 1)))
+            pref = ticket.get_preference()
+            if pref is None:
+                continue
+            if pref not in bundles_to_candidate:
+                bundles_to_candidate[pref] = []
+            bundles_to_candidate[pref].append(PaperBundle(ticket, count, fractions.Fraction(1, 1)))
         for candidate_id in bundles_to_candidate:
             self.candidate_bundle_transactions[candidate_id].append(BundleTransaction(bundles_to_candidate[candidate_id]))
 
@@ -403,12 +362,6 @@ class SenateCounter:
         incoming_tickets = {}
         exhausted_papers = 0
 
-        # FIXME: this split ticket handling doesn't seem to comply with the
-        # Electoral Act, as compiled to 6 May 2013. We should be dealing
-        # with split tickets in aec_data.py; votes cast get split at a
-        # higher level, with the rounded off papers assigned between
-        # the candidates in a decision by the AEO
-
         # remaining aware of split tickets, determine how many papers go to
         # each candidate; effectively we unpack each bundle into preference flows,
         # split as needed, and then repack into new bundles
@@ -420,28 +373,19 @@ class SenateCounter:
 
                 for bundle in bundle_transaction:
                     # determine the candidate(s) that this bundle of papers flows to
-                    to_candidates = {}
-                    for preference_flow in bundle.get_ticket():
-                        to_candidate = self.get_next_preference(preference_flow)
-                        if to_candidate is None:
-                            exhausted_papers += bundle.get_size()
-                            continue
-                        if to_candidate not in to_candidates:
-                            to_candidates[to_candidate] = []
-                        to_candidates[to_candidate].append(preference_flow)
-
-                    for to_candidate in to_candidates:
-                        preference_flows = to_candidates[to_candidate]
-                        frac_of_total = fractions.Fraction(len(preference_flows), len(bundle.get_ticket()))
-                        tickets_count = int(frac_of_total * bundle.get_size())
-                        if to_candidate not in incoming_tickets:
-                            incoming_tickets[to_candidate] = []
-                        incoming_tickets[to_candidate].append((tuple(preference_flows), tickets_count))
+                    ticket = bundle.get_ticket()
+                    to_candidate = self.get_next_preference(ticket)
+                    if to_candidate is None:
+                        exhausted_papers += bundle.get_size()
+                        continue
+                    if to_candidate not in incoming_tickets:
+                        incoming_tickets[to_candidate] = []
+                    incoming_tickets[to_candidate].append((ticket, bundle.get_size()))
 
         for candidate_id in sorted(incoming_tickets, key=self.candidate_order):
             bundles_moving = []
-            for preference_flows, new_count in incoming_tickets[candidate_id]:
-                bundles_moving.append(PaperBundle(Ticket(preference_flows), new_count, transfer_value))
+            for ticket, new_count in incoming_tickets[candidate_id]:
+                bundles_moving.append(PaperBundle(ticket, new_count, transfer_value))
             bundle_transaction = BundleTransaction(bundles_moving)
             self.candidate_bundle_transactions.transfer_to(candidate_id, bundle_transaction)
             candidate_votes[candidate_id] += bundle_transaction.get_votes()

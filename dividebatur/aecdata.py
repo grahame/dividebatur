@@ -2,7 +2,7 @@ import lzma
 import csv
 import itertools
 from collections import namedtuple
-from . counter import Ticket, PreferenceFlow
+from . counter import Ticket
 
 
 def int_or_none(s):
@@ -181,7 +181,7 @@ class SenateATL:
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
                 if ticket not in self.gvt:
                     self.gvt[ticket] = []
-                self.gvt[ticket].append(PreferenceFlow(tuple(prefs)))
+                self.gvt[ticket].append(Ticket(tuple(prefs)))
 
     def load_first_preferences(self, state_name, firstprefs_csv):
         with lzma.open(firstprefs_csv, 'rt') as fd:
@@ -202,8 +202,18 @@ class SenateATL:
                 self.candidate_title[row.CandidateID] = row.CandidateDetails
 
     def get_tickets(self):
+        # GVT handling: see s272 of the electoral act (as collated in 2013)
         for group, n in self.ticket_votes:
-            yield Ticket(tuple(self.gvt[group])), n
+            size = len(self.gvt[group])
+            assert(size <= 3)
+            remainder = n % size
+            # TODO: implement some randomization here
+            remainder_pattern = [1] * remainder + [0] * (size - remainder)
+            if remainder:
+                print("NOTE: GVT remainder AEO input needed: ", remainder_pattern)
+            # remainder_pattern = [0] * (size-remainder) + [1] * remainder
+            for ticket, extra in zip(self.gvt[group], remainder_pattern):
+                yield ticket, int(n / size) + extra
 
     def get_candidate_ids(self):
         return self.individual_candidate_ids
@@ -247,7 +257,7 @@ class SenateBTL:
                     ticket_data.append((row.Preference, row.CandidateId))
                 non_none = [x for x in ticket_data if x[0] is not None]
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
-                ticket = Ticket((PreferenceFlow(ticket_data),))
+                ticket = Ticket(ticket_data)
                 if ticket not in self.ticket_votes:
                     self.ticket_votes[ticket] = 0
                 self.ticket_votes[ticket] += 1

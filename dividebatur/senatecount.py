@@ -8,7 +8,7 @@ import difflib
 import re
 import glob
 from pprint import pprint, pformat
-from .counter import PapersForCount, SenateCounter, Ticket, PreferenceFlow
+from .counter import PapersForCount, SenateCounter, Ticket
 from .aecdata import Candidates, SenateATL, SenateBTL, AllCandidates, SenateFlows, FormalPreferences
 
 
@@ -45,7 +45,7 @@ class SenateCountPost2015:
                     prefs.append((len(prefs) + 1, candidate_id))
             if not prefs:
                 return None
-            return Ticket((PreferenceFlow(tuple(prefs)), ))
+            return Ticket(tuple(prefs))
 
         def btl_flow(form):
             if self.s282_candidates:
@@ -73,7 +73,7 @@ class SenateCountPost2015:
             # must have unique prefs for 1..6, or informal
             if len(prefs) < min_prefs:
                 return None
-            return Ticket((PreferenceFlow(tuple(prefs)), ))
+            return Ticket(tuple(prefs))
 
         atl_n = len(self.flows.groups)
         btl_n = len(self.flows.btl)
