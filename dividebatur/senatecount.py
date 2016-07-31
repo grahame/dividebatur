@@ -154,20 +154,6 @@ class SenateCountPre2015:
         return self.candidates.lookup_id(candidate_id).PartyAb
 
 
-def senate_count_run(fname, vacancies, tickets_for_count, candidates, atl, btl, *args, **kwargs):
-    SenateCounter(
-        fname,
-        vacancies,
-        tickets_for_count,
-        candidates.get_parties(),
-        atl.get_candidate_ids(),
-        lambda candidate_id: atl.get_candidate_order(candidate_id),
-        lambda candidate_id: atl.get_candidate_title(candidate_id),
-        lambda candidate_id: candidates.lookup_id(candidate_id).PartyAb,
-        *args,
-        **kwargs)
-
-
 def verify_test_logs(verified_dir, test_log_dir):
     test_re = re.compile(r'^round_(\d+)\.json')
     rounds = []
@@ -273,6 +259,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
         count_data.get_candidate_title,
         count_data.get_candidate_party,
         test_log_dir,
+        count.get('disable_bulk_exclusions'),
         name=count.get('name'),
         description=count.get('description'),
         house=count['house'],

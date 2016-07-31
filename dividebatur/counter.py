@@ -262,10 +262,10 @@ class CandidateAggregates:
 
 
 class SenateCounter:
-    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, test_log_dir, **kwargs):
+    def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, test_log_dir, disable_bulk_exclusions, **kwargs):
         self.output = JsonOutput(fname)
-        self.vacancies, self.papers_for_count, self.parties, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party = \
-            vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party
+        self.vacancies, self.papers_for_count, self.parties, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party, self.disable_bulk_exclusions = \
+            vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, disable_bulk_exclusions
         self.test_log_dir = test_log_dir
         self.next_automated = 0
         self.template_vars = kwargs
@@ -900,10 +900,11 @@ class SenateCounter:
 
             if not self.have_pending_election_distribution() and not self.have_pending_exclusion_distribution():
                 # # FIXME: I believe we can do a bulk exclusion, even if there is an overquota distribution pending
-                bulk_exclude, reason = self.determine_bulk_exclusions(candidate_aggregates)
-                if bulk_exclude:
-                    self.exclude_candidates(bulk_exclude, round_log, round_number, reason)
-                    affected.update(bulk_exclude)
+                if not self.disable_bulk_exclusions:
+                    bulk_exclude, reason = self.determine_bulk_exclusions(candidate_aggregates)
+                    if bulk_exclude:
+                        self.exclude_candidates(bulk_exclude, round_log, round_number, reason)
+                        affected.update(bulk_exclude)
 
                 # if we exclude a candidate with no papers, there may not be a distribution of
                 # preferences - which would leave the next round of the count with nothing to do
