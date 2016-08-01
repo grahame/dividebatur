@@ -1,3 +1,4 @@
+from collections import defaultdict
 import itertools
 import json
 import fractions
@@ -60,12 +61,10 @@ class PapersForCount:
     """
 
     def __init__(self):
-        self.papers = {}
+        self.papers = defaultdict(int)
 
     def add_ticket(self, ticket, n):
         assert(isinstance(ticket, Ticket))
-        if ticket not in self.papers:
-            self.papers[ticket] = 0
         self.papers[ticket] += n
 
     def __iter__(self):
@@ -146,14 +145,12 @@ class CandidateBundleTransactions:
         for candidate_id in candidate_ids:
             self.candidate_bundle_transactions[candidate_id] = []
         # go through each ticket and count in the papers and assign by first preference
-        bundles_to_candidate = {}
+        bundles_to_candidate = defaultdict(list)
         for ticket, count in papers_for_count:
             # first preferences, by flow
             pref = ticket.get_preference()
             if pref is None:
                 continue
-            if pref not in bundles_to_candidate:
-                bundles_to_candidate[pref] = []
             bundles_to_candidate[pref].append(PaperBundle(ticket, count, fractions.Fraction(1, 1)))
         for candidate_id in bundles_to_candidate:
             self.candidate_bundle_transactions[candidate_id].append(BundleTransaction(bundles_to_candidate[candidate_id]))
@@ -295,14 +292,12 @@ class SenateCounter:
         determine all candidates with at least a quota of votes in `candidate_votes'. returns results in
         order of decreasing vote count
         """
-        eligible_by_vote = {}
+        eligible_by_vote = defaultdict(list)
         for candidate_id, votes in candidate_votes.candidate_votes_iter():
             if candidate_id in self.candidates_elected:
                 continue
             if votes < self.quota:
                 continue
-            if votes not in eligible_by_vote:
-                eligible_by_vote[votes] = []
             eligible_by_vote[votes].append(candidate_id)
 
         elected = []
@@ -359,7 +354,7 @@ class SenateCounter:
         "bundle_transactions_to_distribute is an array of tuples, [(CandidateFrom, BundleTransactions)]"
 
         # figure out how many net votes, and which ticket_tpls, go where
-        incoming_tickets = {}
+        incoming_tickets = defaultdict(list)
         exhausted_papers = 0
 
         # remaining aware of split tickets, determine how many papers go to
@@ -378,8 +373,6 @@ class SenateCounter:
                     if to_candidate is None:
                         exhausted_papers += bundle.get_size()
                         continue
-                    if to_candidate not in incoming_tickets:
-                        incoming_tickets[to_candidate] = []
                     incoming_tickets[to_candidate].append((ticket, bundle.get_size()))
 
         for candidate_id in sorted(incoming_tickets, key=self.candidate_order):
@@ -410,7 +403,7 @@ class SenateCounter:
 
     def exclude_candidates(self, candidates, round_log, round_number, reason):
         # transfers to run, and the candidates distributed in them
-        transfers_applicable = {}
+        transfers_applicable = defaultdict(set)
         for candidate_id in candidates:
             exclusion_info = {
                 'order': len(self.candidates_excluded) + 1,
@@ -421,8 +414,6 @@ class SenateCounter:
             self.candidates_excluded[candidate_id] = exclusion_info
             for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
                 value = bundle_transaction.get_transfer_value()
-                if value not in transfers_applicable:
-                    transfers_applicable[value] = set()
                 transfers_applicable[value].add(candidate_id)
 
         transfer_values = list(reversed(sorted(transfers_applicable)))
@@ -563,11 +554,9 @@ class SenateCounter:
         if no such round exists, returns None
         """
         for candidate_aggregates in reversed(self.round_candidate_aggregates):
-            candidates_on_vote = {}
+            candidates_on_vote = defaultdict(int)
             for candidate_id in candidate_ids:
                 votes = candidate_aggregates.get_vote_count(candidate_id)
-                if votes not in candidates_on_vote:
-                    candidates_on_vote[votes] = 0
                 candidates_on_vote[votes] += 1
             if max(candidates_on_vote.values()) == 1:
                 return candidate_aggregates
@@ -625,11 +614,9 @@ class SenateCounter:
 
     def get_votes_to_candidates(self, candidates, candidate_aggregates):
         candidate_votes = candidate_aggregates.get_candidate_votes()
-        by_votes = {}
+        by_votes = defaultdict(list)
         for candidate_id in candidates:
             votes = candidate_votes[candidate_id]
-            if votes not in by_votes:
-                by_votes[votes] = []
             by_votes[votes].append(candidate_id)
         return by_votes
 

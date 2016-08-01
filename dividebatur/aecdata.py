@@ -1,7 +1,7 @@
 import itertools
 import csv
 import re
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from . counter import Ticket
 
 
@@ -38,7 +38,7 @@ class AllCandidates:
         self.load(csv_file)
 
     def load(self, csv_file):
-        self.groups = {}
+        self.groups = defaultdict(list)
         with open(csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
@@ -47,8 +47,6 @@ class AllCandidates:
                     continue
                 if candidate.nom_ty != 'S':
                     continue
-                if candidate.ticket not in self.groups:
-                    self.groups[candidate.ticket] = []
                 self.groups[candidate.ticket].append(candidate)
 
 
@@ -57,7 +55,7 @@ class SenateFlows:
 
     def __init__(self, candidates, all_candidates):
         self.groups = []
-        self.flows = {}
+        self.flows = defaultdict(list)
         self.btl = []
         self.candidate_title = {}
         self.match(candidates, all_candidates)
@@ -81,8 +79,6 @@ class SenateFlows:
                 k = (all_candidate.surname, all_candidate.ballot_given_nm, all_candidate.party_ballot_nm)
                 matched = candidates.by_name_party[k]
                 if group != 'UG':
-                    if group not in self.flows:
-                        self.flows[group] = []
                     self.flows[group].append(matched.CandidateID)
                 self.btl.append(matched.CandidateID)
                 self.candidate_title[matched.CandidateID] = matched.Surname + ', ' + matched.GivenNm
@@ -149,8 +145,8 @@ class SenateATL:
 
     def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
         self.state_name = state_name
-        self.gvt = {}
-        self.ticket_votes = []
+        self.gvt = defaultdict(list)
+        self.ticket_votes = defaultdict(int)
         self.individual_candidate_ids = []
         self.candidate_order = {}
         self.candidate_title = {}
@@ -181,8 +177,6 @@ class SenateATL:
 
                 non_none = [x for x in prefs if x[0] is not None]
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
-                if ticket not in self.gvt:
-                    self.gvt[ticket] = []
                 self.gvt[ticket].append(Ticket(tuple(prefs)))
 
     def load_first_preferences(self, state_name, firstprefs_csv):
@@ -261,8 +255,6 @@ class SenateBTL:
                 non_none = [x for x in ticket_data if x[0] is not None]
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
                 ticket = Ticket(ticket_data)
-                if ticket not in self.ticket_votes:
-                    self.ticket_votes[ticket] = 0
                 self.ticket_votes[ticket] += 1
 
     def get_tickets(self):
