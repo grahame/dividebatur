@@ -1,14 +1,14 @@
-import csv
 import itertools
+import csv
+import re
 from collections import namedtuple
 from . counter import Ticket
 
 
 def int_or_none(s):
-    try:
-        return int(s)
-    except ValueError:
+    if s == '':
         return None
+    return int(s)
 
 
 def ticket_sort_key(ticket):
@@ -96,16 +96,19 @@ class FormalPreferences:
         self._csv_file = csv_file
 
     def __iter__(self):
+        sub_re = re.compile('\*|/')
+
         def parse_prefs(s):
             ", delimited, with * and / meaning 1"
-            return [int_or_none(t) for t in s.replace('*', '1').replace('/', '1').split(',')]
+            return [int_or_none(t) for t in sub_re.sub('1', s).split(',')]
         with open(self._csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
+            assert(header == ['ElectorateNm', 'VoteCollectionPointNm', 'VoteCollectionPointId', 'BatchNo', 'PaperNo', 'Preferences'])
             dummy = next(reader)
             assert(dummy == ['------------', '---------------------', '---------------------', '-------', '-------', '-----------'])
-            for pref in named_tuple_iter('FormalPref', reader, header, Preferences=parse_prefs):
-                yield pref
+            for row in reader:
+                yield parse_prefs(row[5])
 
 
 class Candidates:

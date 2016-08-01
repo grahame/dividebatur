@@ -75,8 +75,7 @@ class SenateCountPost2015:
         atl_n = len(self.flows.groups)
         btl_n = len(self.flows.btl)
         informal_n = 0
-        for pref in FormalPreferences(get_input_file('formal-preferences')):
-            raw_form = pref.Preferences
+        for raw_form in FormalPreferences(get_input_file('formal-preferences')):
             assert(len(raw_form) == atl_n + btl_n)
             # BTL takes precedence
             atl = raw_form[:atl_n]
