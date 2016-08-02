@@ -20,7 +20,7 @@ class SenateCountPost2015:
         self.tickets_for_count = PapersForCount()
 
         self.s282_candidates = kwargs.get('s282_candidates')
-
+        self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
         def atl_flow(form):
             by_pref = {}
             for pref, group in zip(form, self.flows.groups):
@@ -75,8 +75,11 @@ class SenateCountPost2015:
         atl_n = len(self.flows.groups)
         btl_n = len(self.flows.btl)
         informal_n = 0
+        n_ballots = 0
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
             assert(len(raw_form) == atl_n + btl_n)
+            if self.max_tickets  and n_ballots >=self.max_tickets:
+                return 
             # BTL takes precedence
             atl = raw_form[:atl_n]
             btl = raw_form[atl_n:]
@@ -85,6 +88,7 @@ class SenateCountPost2015:
                 self.tickets_for_count.add_ticket(form, count)
             else:
                 informal_n += count
+            n_ballots += count
         print("note: %d ballots informal and excluded from the count" % informal_n)
 
     def get_tickets_for_count(self):
