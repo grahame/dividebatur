@@ -43,7 +43,7 @@ $ mv git-lfs-1.3.0/git-lfs $HOME/bin/git-lfs
 $ export PATH=$PATH:$HOME/bin/
 ```
 
-# Optional to run tests
+### Optional to run tests
 ```bash
 $ sudo apt-get install python3-pip
 $ pip3 install flake8
