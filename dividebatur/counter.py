@@ -393,9 +393,11 @@ class SenateCounter:
         }
         transfer = None
         if len(self.candidates_elected) != self.vacancies:
-            excess_votes = candidate_aggregates.get_vote_count(candidate_id) - self.quota
+            excess_votes = max(candidate_aggregates.get_vote_count(candidate_id) - self.quota, 0)
             assert(excess_votes >= 0)
-            transfer_value = fractions.Fraction(excess_votes, self.candidate_bundle_transactions.paper_count(candidate_id))
+            transfer_value = 0
+            if self.candidate_bundle_transactions.paper_count(candidate_id):
+                transfer_value = fractions.Fraction(excess_votes, self.candidate_bundle_transactions.paper_count(candidate_id))
             assert(transfer_value >= 0)
             self.election_distributions_pending.append((candidate_id, transfer_value, excess_votes))
             transfer = excess_votes, float(transfer_value)
