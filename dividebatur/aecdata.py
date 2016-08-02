@@ -106,8 +106,11 @@ class FormalPreferences:
             assert(header == ['ElectorateNm', 'VoteCollectionPointNm', 'VoteCollectionPointId', 'BatchNo', 'PaperNo', 'Preferences'])
             dummy = next(reader)
             assert(dummy == ['------------', '---------------------', '---------------------', '-------', '-------', '-----------'])
+            form_count = defaultdict(int)
             for row in reader:
-                yield parse_prefs(row[5])
+                form_count[row[5]] += 1
+            for form, count in form_count.items():
+                yield parse_prefs(form), count
 
 
 class Candidates:

@@ -2,6 +2,8 @@ __pycache__
 log/
 dist/
 angular/data
+profile/*.dot
+profile/*.prof
 .DS_Store
 *.pyc
 .#*

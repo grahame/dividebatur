@@ -75,16 +75,16 @@ class SenateCountPost2015:
         atl_n = len(self.flows.groups)
         btl_n = len(self.flows.btl)
         informal_n = 0
-        for raw_form in FormalPreferences(get_input_file('formal-preferences')):
+        for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
             assert(len(raw_form) == atl_n + btl_n)
             # BTL takes precedence
             atl = raw_form[:atl_n]
             btl = raw_form[atl_n:]
             form = btl_flow(btl) or atl_flow(atl)
             if form:
-                self.tickets_for_count.add_ticket(form, 1)
+                self.tickets_for_count.add_ticket(form, count)
             else:
-                informal_n += 1
+                informal_n += count
         print("note: %d ballots informal and excluded from the count" % informal_n)
 
     def get_tickets_for_count(self):
