@@ -13,7 +13,7 @@ The counting algorithm is defined in Section 273. Other sections define the rule
 
 ## License
 
-Copyright 2013 Grahame Bowland
+Copyright 2013-16, The Dividebatur Authors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ Copyright 2013 Grahame Bowland
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+
+See the file AUTHORS for a list of contributors to this software project.
 
 The data located under `aec_data/` is licensed under a 
 Creative Commons Attribution 3.0 Australia Licence (CC BY 3.0), and is 
