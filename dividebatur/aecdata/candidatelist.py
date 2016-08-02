@@ -48,7 +48,7 @@ class CandidateList:
         self.groups = []
         self.group_by_id = {}
 
-        candidate_by_name_party, party_ab = self._load_senate_candidate(
+        candidate_by_name_party, party_ab = self._load_senate_candidates(
             senate_candidates_csv)
         current_group = None
         current_party = None
@@ -102,7 +102,7 @@ class CandidateList:
                 candidates.append(candidate)
         return candidates
 
-    def _load_senate_candidate(self, senate_candidates_csv):
+    def _load_senate_candidates(self, senate_candidates_csv):
         by_name_party = {}
         party_ab = {}
         seen_ids = set()
