@@ -218,6 +218,11 @@ class CandidateAggregates:
 
 
 class SenateCounter:
+    """
+    Implementation of the Australian Senate version of an STV ballot, as defined
+    by the Commonwealth Electoral Act (1918)
+    """
+
     def __init__(self, fname, vacancies, papers_for_count, parties, candidate_ids, candidate_order, candidate_title, candidate_party, test_log_dir, disable_bulk_exclusions, **kwargs):
         self.output = JsonOutput(fname)
         self.vacancies, self.papers_for_count, self.parties, self.candidate_ids, self.candidate_order, self.candidate_title, self.candidate_party, self.disable_bulk_exclusions = \
@@ -235,10 +240,27 @@ class SenateCounter:
         self.exclusion_distributions_pending = []
         self.election_distributions_pending = []
         self.has_run = False
-        self.set_automation_callback(None)
+        self.set_election_order_callback(None)
+        self.set_candidate_tie_callback(None)
 
-    def set_automation_callback(self, cb):
-        self.automation_callback = cb
+    def set_election_order_callback(self, cb):
+        """
+        function `cb` will be called whenever input from the AEO would be required
+        to choose an election order from a set of possibilities. the function will
+        be passed a list of lists of candidate IDs, and should return the index
+        of the option to choose.
+        """
+        self.election_order_callback = cb
+
+    def set_candidate_tie_callback(self, cb):
+        """
+        function `cb` will be called whenever input from the AEO would be required
+        to choose a candidate to perform an action upon, from a list of possible
+        candidates. action could be election or exclusion. the function will be
+        be passed a list of lists of candidate IDs, and should return the index
+        of the option to choose.
+        """
+        self.candidate_tie_callback = cb
 
     def run(self):
         assert(self.has_run is False)
@@ -266,16 +288,37 @@ class SenateCounter:
             'id': candidate_id
         }) for candidate_id in self.candidate_ids)
 
-    def input_or_automated(self, entry, qn):
+    def determine_election_order(self, entry, qn, candidate_permutations):
+        """
+        if an automation callback has been set with `set_election_order_callback`,
+        call that function to break the tie. otherwise, request user input via
+        the terminal.
+        """
         resp = None
-        if self.automation_callback is not None:
-            resp = self.automation_callback()
+        if self.election_order_callback is not None:
+            resp = self.election_order_callback(candidate_permutations)
+        if resp is not None:
+            entry.log("%s\nautomation: '%s' entered" % (qn, resp + 1), echo=True)
+            return resp
+        else:
+            entry.log(qn, echo=True, end='')
+            return int(input()) - 1
+
+    def determine_candidate_tie(self, entry, qn, candidates):
+        """
+        if an automation callback has been set with `set_candidate_tie_callback`,
+        call that function to break the tie. otherwise, request user input via
+        the terminal.
+        """
+        resp = None
+        if self.candidate_tie_callback is not None:
+            resp = self.candidate_tie_callback(candidates)
         if resp is not None:
             entry.log("%s\nautomation: '%s' entered" % (qn, resp), echo=True)
             return resp
         else:
             entry.log(qn, echo=True, end='')
-            return input()
+            return int(input()) - 1
 
     def determine_quota(self):
         self.total_papers = sum(count for _, count in self.papers_for_count)
@@ -320,8 +363,8 @@ class SenateCounter:
                         permutations = itertools.permutations(candidate_ids)
                         for idx, permutation in enumerate(permutations):
                             entry.log("%d) %s" % (idx + 1, ', '.join([self.candidate_title(t) for t in permutation])))
-                        choice = int(self.input_or_automated(entry, "choose election order: "))
-                        for candidate_id in permutations[choice - 1]:
+                        choice = self.determine_election_order(entry, "choose election order: ", permutations)
+                        for candidate_id in permutations[choice]:
                             elected.append(candidate_id)
         return elected
 
@@ -566,7 +609,7 @@ class SenateCounter:
         sorted_candidate_ids = list(sorted(candidate_ids, key=self.candidate_title))
         for idx, candidate_id in enumerate(sorted_candidate_ids):
             entry.log("[%3d] - %s" % (idx + 1, self.candidate_title(candidate_id)), echo=True)
-        return sorted_candidate_ids[int(self.input_or_automated(entry, question)) - 1]
+        return sorted_candidate_ids[self.determine_candidate_tie(entry, question, len(sorted_candidate_ids))]
 
     def candidate_to_exclude(self, round_log, candidate_aggregates):
         def eligible(candidate_id):

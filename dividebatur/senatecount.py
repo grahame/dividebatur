@@ -236,10 +236,12 @@ def get_data(input_cls, base_dir, count, **kwargs):
 def make_automation(answers):
     done = []
 
-    def __auto_fn():
+    def __auto_fn(*args):
         if len(done) == len(answers):
             return None
-        resp = answers[len(done)]
+        # it makes sense for the JSON to be indexed from 1, so the JSON
+        # data matches what's typed in on the console
+        resp = answers[len(done)] - 1
         done.append(resp)
         return resp
     return __auto_fn
@@ -272,7 +274,9 @@ def get_outcome(count, count_data, base_dir, out_dir):
         description=count.get('description'),
         house=count['house'],
         state=count['state'])
-    counter.set_automation_callback(make_automation(count.get('automation', [])))
+    automation_fn = make_automation(count.get('automation', []))
+    counter.set_election_order_callback(automation_fn)
+    counter.set_candidate_tie_callback(automation_fn)
     counter.run()
     if test_log_dir is not None:
         if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
