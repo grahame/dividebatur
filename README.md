@@ -50,6 +50,28 @@ $ pip3 install flake8
 $ pip3 install nose
 ```
 
+## Contributing
+
+Contributions are welcomed, please feel free to send in pull requests.
+
+Please abide by [The Rust Code of Conduct](https://www.rust-lang.org/en-US/conduct.html)
+when contributing to or otherwise engaging this project.
+
+Please check that the tests pass before committing. See `travis_tests.sh`
+in the root of the repository. This includes a lint pass, running `flake8 --ignore=E501 dividebatur`.
+Make sure you've got flake8 installed for python3 (you should only need
+to run `pip3 install flake8`.)
+
+Of course, if there is a bug in the tests, please correct the tests
+and include in the PR.
+
+Right now there are fairly minimal unit tests, written using nose.
+It's a goal to increase the coverage of unit tests.
+
+There are quite a few functional tests, checking that known-correct
+election results don't vary. These do pick up quite a few regressions,
+but could certainly be improved.
+
 ## Usage
 
 `git lfs pull` will download the large data files.
