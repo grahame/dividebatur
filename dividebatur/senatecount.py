@@ -44,7 +44,7 @@ class SenateCountPost2015:
                     prefs.append((len(prefs) + 1, candidate_id))
             if not prefs:
                 return None
-            return Ticket(tuple(prefs))
+            return Ticket(prefs)
 
         def btl_flow(form):
             if self.s282_candidates:
@@ -72,14 +72,13 @@ class SenateCountPost2015:
             # must have unique prefs for 1..6, or informal
             if len(prefs) < min_prefs:
                 return None
-            return Ticket(tuple(prefs))
+            return Ticket(prefs)
 
         atl_n = len(self.candidates.groups)
         btl_n = len(self.candidates.candidates)
         informal_n = 0
         n_ballots = 0
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
-            assert(len(raw_form) == atl_n + btl_n)
             if self.max_tickets and n_ballots >= self.max_tickets:
                 return
             # BTL takes precedence
@@ -91,6 +90,8 @@ class SenateCountPost2015:
             else:
                 informal_n += count
             n_ballots += count
+        # slightly paranoid check, but outside the busy loop
+        assert(len(raw_form) == atl_n + btl_n)
         print("note: %d ballots informal and excluded from the count" % informal_n)
 
     def get_tickets_for_count(self):

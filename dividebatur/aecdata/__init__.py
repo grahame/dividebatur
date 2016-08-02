@@ -1,7 +1,7 @@
 import itertools
 import csv
 import re
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from .candidatelist import CandidateList  # noqa
 from .utils import named_tuple_iter, ticket_sort_key
@@ -28,16 +28,14 @@ class FormalPreferences:
 
         def parse_prefs(s):
             ", delimited, with * and / meaning 1"
-            return [int_or_none(t) for t in sub_re.sub('1', s).split(',')]
+            return tuple(int_or_none(t) for t in sub_re.sub('1', s).split(','))
         with open(self._csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
             assert(header == ['ElectorateNm', 'VoteCollectionPointNm', 'VoteCollectionPointId', 'BatchNo', 'PaperNo', 'Preferences'])
             dummy = next(reader)
             assert(dummy == ['------------', '---------------------', '---------------------', '-------', '-------', '-----------'])
-            form_count = defaultdict(int)
-            for row in reader:
-                form_count[row[5]] += 1
+            form_count = Counter(t[5] for t in reader)
             for form, count in form_count.items():
                 yield parse_prefs(form), count
 
