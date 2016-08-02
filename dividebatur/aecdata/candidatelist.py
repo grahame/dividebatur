@@ -1,8 +1,7 @@
 import csv
 import collections
 
-from . import (
-    ticket_sort_key, named_tuple_iter)
+from .utils import ticket_sort_key, named_tuple_iter
 
 
 Candidate = collections.namedtuple('Candidate', [
@@ -15,13 +14,27 @@ Candidate = collections.namedtuple('Candidate', [
     'party_name',
 ])
 
+
 Group = collections.namedtuple('Group', [
     'group_id',
     'party_name',
     'candidates', # Ordered list of candidates in group
 ])
 
+
 class CandidateList:
+    """CandidateList provides a list of senate candidates and groups.
+
+    The following members are publicly accessible:
+
+      - candidates: a list of all candidates, in the order they appear
+        on the ballot.
+      - candidate_by_id: a dictionary mapping candidate IDs to the candidate.
+      - groups: a list of groups, in the order they appear on the
+        ballot.  Does not include the ungrouped candidates.
+      - group_by_id: a dictionary mapping group IDs (e.g. A, B, ...)
+        to the group.
+    """
 
     def __init__(self, state, all_candidates_csv, senate_candidates_csv):
         self.state = state

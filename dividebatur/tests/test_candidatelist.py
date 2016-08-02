@@ -2,7 +2,7 @@ import os
 import unittest
 
 import dividebatur
-from dividebatur.aecdata.candidatelist import CandidateList
+from dividebatur.aecdata import CandidateList
 
 datadir = os.path.join(os.path.dirname(dividebatur.__file__),
                        os.pardir, "aec_data")
