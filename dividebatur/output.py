@@ -100,4 +100,4 @@ class JsonOutput:
             'summary': self.summary,
         }
         with open(self.fname, 'w') as fd:
-            json.dump(obj, fd, indent=4)
+            json.dump(obj, fd)

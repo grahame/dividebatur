@@ -491,8 +491,7 @@ class SenateCounter:
         for candidate_id in self.candidate_ids_display(candidate_aggregates):
             log.append((self.candidate_title(candidate_id), candidate_aggregates.get_vote_count(candidate_id)))
         with open(os.path.join(self.test_log_dir, 'round_%d.json' % (round_number)), 'w') as fd:
-            json.dump(log, fd, sort_keys=True,
-                      indent=4, separators=(',', ': '))
+            json.dump(log, fd)
 
     def candidate_election_order(self, candidate_id):
         """only for use in sorting for output"""

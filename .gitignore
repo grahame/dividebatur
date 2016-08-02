@@ -4,6 +4,7 @@ dist/
 angular/data
 profile/*.dot
 profile/*.prof
+profile/data/
 .DS_Store
 *.pyc
 .#*

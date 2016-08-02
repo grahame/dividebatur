@@ -212,7 +212,7 @@ def write_angular_json(config, out_dir):
             'description': count['description'],
             'path': count['shortname']}
             for count in config['count']]
-        json.dump(obj, fd)
+        json.dump(obj, fd, sort_keys=True, indent=4, separators=(',', ': '))
 
 
 def get_data(input_cls, base_dir, count, **kwargs):
