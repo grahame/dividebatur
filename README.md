@@ -5,6 +5,9 @@ blog post:
 
 http://blog.angrygoats.net/2014/01/25/counting-the-west-australian-senate-election/
 
+For the legislation defining the system we are implementing, see the `legislation` directory of the repository.
+The counting algorithm is defined in Section 273. Other sections define the rules around formality of ballots.
+
 ## Build status
 [![Build Status](https://travis-ci.org/grahame/dividebatur.svg?branch=master)](https://travis-ci.org/grahame/dividebatur)
 
