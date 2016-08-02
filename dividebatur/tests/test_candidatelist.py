@@ -26,23 +26,26 @@ class CandidateListTests(unittest.TestCase):
         self.assertEqual(24801, first_candidate.candidate_id)
         self.assertEqual("LEYONHJELM", first_candidate.surname)
         self.assertEqual("David", first_candidate.given_name)
-        self.assertEqual(0, first_candidate.candidate_pos)
+        self.assertEqual(0, first_candidate.candidate_order)
         self.assertEqual("A", first_candidate.group_id)
         self.assertEqual(1, first_candidate.ballot_position)
         self.assertEqual("Liberal Democrats", first_candidate.party_name)
+        self.assertEqual("LDP", first_candidate.party_abbreviation)
 
         last_candidate = cl.candidates[-1]
         self.assertEqual(24866, last_candidate.candidate_id)
         self.assertEqual("La MELA", last_candidate.surname)
         self.assertEqual("John", last_candidate.given_name)
-        self.assertEqual(109, last_candidate.candidate_pos)
+        self.assertEqual(109, last_candidate.candidate_order)
         self.assertEqual("UG", last_candidate.group_id)
         self.assertEqual(4, last_candidate.ballot_position)
         self.assertEqual("Independent", last_candidate.party_name)
+        self.assertEqual("IND", last_candidate.party_abbreviation)
 
         first_group = cl.groups[0]
         self.assertEqual("A", first_group.group_id)
         self.assertEqual("Liberal Democrats", first_group.party_name)
+        self.assertEqual("LDP", first_group.party_abbreviation)
         self.assertEqual(2, len(first_group.candidates))
         self.assertIs(first_candidate, first_group.candidates[0])
 
@@ -51,6 +54,7 @@ class CandidateListTests(unittest.TestCase):
         last_group = cl.groups[-1]
         self.assertEqual("AR", last_group.group_id)
         self.assertEqual("One Nation", last_group.party_name)
+        self.assertEqual("ON", last_group.party_abbreviation)
 
         # Lookup by ID
         self.assertIs(first_candidate, cl.candidate_by_id[24801])
@@ -73,25 +77,28 @@ class CandidateListTests(unittest.TestCase):
         self.assertEqual(29437, first_candidate.candidate_id)
         self.assertEqual("IMISIDES", first_candidate.surname)
         self.assertEqual("Mark David", first_candidate.given_name)
-        self.assertEqual(0, first_candidate.candidate_pos)
+        self.assertEqual(0, first_candidate.candidate_order)
         self.assertEqual("A", first_candidate.group_id)
         self.assertEqual(1, first_candidate.ballot_position)
         self.assertEqual("Christian Democratic Party (Fred Nile Group)",
                          first_candidate.party_name)
+        self.assertEqual("CDP", first_candidate.party_abbreviation)
 
         last_candidate = cl.candidates[-1]
         self.assertEqual(29428, last_candidate.candidate_id)
         self.assertEqual("RAMSAY", last_candidate.surname)
         self.assertEqual("Norm", last_candidate.given_name)
-        self.assertEqual(78, last_candidate.candidate_pos)
+        self.assertEqual(78, last_candidate.candidate_order)
         self.assertEqual("UG", last_candidate.group_id)
         self.assertEqual(6, last_candidate.ballot_position)
         self.assertEqual("Independent", last_candidate.party_name)
+        self.assertEqual("IND", last_candidate.party_abbreviation)
 
         first_group = cl.groups[0]
         self.assertEqual("A", first_group.group_id)
         self.assertEqual("Christian Democratic Party (Fred Nile Group)",
                          first_group.party_name)
+        self.assertEqual("CDP", first_group.party_abbreviation)
         self.assertEqual(2, len(first_group.candidates))
         self.assertIs(first_candidate, first_group.candidates[0])
 
@@ -100,6 +107,7 @@ class CandidateListTests(unittest.TestCase):
         last_group = cl.groups[-1]
         self.assertEqual("AB", last_group.group_id)
         self.assertEqual("Family First Party", last_group.party_name)
+        self.assertEqual("FFP", last_group.party_abbreviation)
 
         # Lookup by ID
         self.assertIs(first_candidate, cl.candidate_by_id[29437])

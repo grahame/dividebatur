@@ -8,16 +8,18 @@ Candidate = collections.namedtuple('Candidate', [
     'candidate_id',
     'surname',
     'given_name',
-    'candidate_pos',   # Position within the entire ballot, 0 based.
+    'candidate_order', # Position within the entire ballot, 0 based.
     'group_id',        # Group ID
     'ballot_position', # Position within group, 1 based.
     'party_name',
+    'party_abbreviation',
 ])
 
 
 Group = collections.namedtuple('Group', [
     'group_id',
     'party_name',
+    'party_abbreviation',
     'candidates', # Ordered list of candidates in group
 ])
 
@@ -46,41 +48,48 @@ class CandidateList:
         self.groups = []
         self.group_by_id = {}
 
-        by_name_party = self._load_candidate_ids(senate_candidates_csv)
+        candidate_by_name_party, party_ab = self._load_senate_candidate(
+            senate_candidates_csv)
         current_group = None
         current_party = None
         current_candidates = []
-        for c in self._load_candidates(all_candidates_csv):
+        for c in self._load_all_candidates(all_candidates_csv):
             if c.ticket != current_group:
                 if current_group is not None and current_group != "UG":
-                    group = Group(
-                        current_group, current_party, tuple(current_candidates))
+                    group = Group(current_group,
+                                  current_party,
+                                  party_ab[current_party],
+                                  tuple(current_candidates))
                     self.groups.append(group)
                     self.group_by_id[group.group_id] = group
                 current_group = c.ticket
                 current_party = c.party_ballot_nm
                 current_candidates = []
 
-            candidate_id = by_name_party[c.surname, c.ballot_given_nm, c.party_ballot_nm]
+            candidate_id = candidate_by_name_party[
+                c.surname, c.ballot_given_nm, c.party_ballot_nm]
             candidate = Candidate(candidate_id,
                                   c.surname,
                                   c.ballot_given_nm,
                                   len(self.candidates),
                                   current_group,
                                   c.ballot_position,
-                                  c.party_ballot_nm)
+                                  c.party_ballot_nm,
+                                  party_ab[c.party_ballot_nm])
             self.candidates.append(candidate)
             self.candidate_by_id[candidate.candidate_id] = candidate
             current_candidates.append(candidate)
 
         # Add the final group, assuming it isn't the ungrouped candidates
         if current_group is not None and current_group != "UG":
-            group = Group(
-                current_group, current_party, tuple(current_candidates))
+            group = Group(current_group,
+                          current_party,
+                          party_ab[current_party],
+                          tuple(current_candidates))
             self.groups.append(group)
             self.group_by_id[group.group_id] = group
 
-    def _load_candidates(self, all_candidates_csv):
+    def _load_all_candidates(self, all_candidates_csv):
         candidates = []
         with open(all_candidates_csv, 'rt') as fd:
             reader = csv.reader(fd)
@@ -93,8 +102,9 @@ class CandidateList:
                 candidates.append(candidate)
         return candidates
 
-    def _load_candidate_ids(self, senate_candidates_csv):
+    def _load_senate_candidate(self, senate_candidates_csv):
         by_name_party = {}
+        party_ab = {}
         seen_ids = set()
         with open(senate_candidates_csv, 'rt') as fd:
             reader = csv.reader(fd)
@@ -108,4 +118,5 @@ class CandidateList:
                 assert k not in by_name_party
                 by_name_party[k] = candidate.CandidateID
                 seen_ids.add(candidate.CandidateID)
-        return by_name_party
+                party_ab[candidate.PartyNm] = candidate.PartyAb
+        return by_name_party, party_ab
