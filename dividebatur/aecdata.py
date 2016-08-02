@@ -8,7 +8,10 @@ from . counter import Ticket
 def int_or_none(s):
     if s == '':
         return None
-    return int(s)
+    try:
+        return int(s)
+    except ValueError:
+        return None
 
 
 def ticket_sort_key(ticket):
@@ -146,7 +149,7 @@ class SenateATL:
     def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
         self.state_name = state_name
         self.gvt = defaultdict(list)
-        self.ticket_votes = defaultdict(int)
+        self.ticket_votes = []
         self.individual_candidate_ids = []
         self.candidate_order = {}
         self.candidate_title = {}
@@ -230,7 +233,7 @@ class SenateBTL:
     """
 
     def __init__(self, candidates, btl_csv):
-        self.ticket_votes = {}
+        self.ticket_votes = defaultdict(int)
         self.raw_ticket_data = []
         self.load_btl(candidates, btl_csv)
 
