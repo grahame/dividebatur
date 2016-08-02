@@ -5,7 +5,7 @@ set -e
 pip3 install flake8
 pip3 install nose
 
-nosetests dividebatur
+nosetests -v dividebatur
 
 flake8 --ignore=E501 dividebatur
 
