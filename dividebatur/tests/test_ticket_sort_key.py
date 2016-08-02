@@ -1,4 +1,4 @@
-from .aecdata import ticket_sort_key
+from ..aecdata import ticket_sort_key
 
 
 def apply_ticket_sort(items):

@@ -2,7 +2,7 @@ import itertools
 import csv
 import re
 from collections import namedtuple, defaultdict
-from . counter import Ticket
+from ..counter import Ticket
 
 
 def int_or_none(s):
