@@ -21,6 +21,7 @@ class SenateCountPost2015:
 
         self.s282_candidates = kwargs.get('s282_candidates')
         self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
+
         def atl_flow(form):
             by_pref = {}
             for pref, group in zip(form, self.flows.groups):
@@ -78,8 +79,8 @@ class SenateCountPost2015:
         n_ballots = 0
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
             assert(len(raw_form) == atl_n + btl_n)
-            if self.max_tickets  and n_ballots >=self.max_tickets:
-                return 
+            if self.max_tickets and n_ballots >= self.max_tickets:
+                return
             # BTL takes precedence
             atl = raw_form[:atl_n]
             btl = raw_form[atl_n:]
@@ -274,7 +275,7 @@ def get_outcome(count, count_data, base_dir, out_dir):
     if not test_logs_okay:
         print("** TESTS FAILED **")
         sys.exit(1)
-    return (outf , counter.output.summary)
+    return (outf, counter.output.summary)
 
 
 def get_input_method(format):
@@ -285,9 +286,10 @@ def get_input_method(format):
         return SenateCountPost2015
 
 
-def counting_method_valid(method_cls):
+def check_counting_method_valid(method_cls, data_format):
     if method_cls is None:
-        raise Exception("unsupported AEC data format '%s' requested" % (aec_data_config['format']))
+        raise Exception("unsupported AEC data format '%s' requested" % (data_format))
+
 
 def s282_recount_get_candidates(out_dir, count, written):
     shortname = count.get('s282_recount')
@@ -312,13 +314,14 @@ def main(config_file, out_dir):
     written = set()
     for count in config['count']:
         aec_data_config = count['aec-data']
-        input_cls = get_input_method(aec_data_config['format'])
-        counting_method_valid(input_cls)
+        data_format = aec_data_config['format']
+        input_cls = get_input_method(data_format)
+        check_counting_method_valid(input_cls, data_format)
         s282_candidates = s282_recount_get_candidates(out_dir, count, written)
         print("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, s282_candidates=s282_candidates)
         print("determining outcome for count: `%s'" % (count['name']))
-        outf,__ = get_outcome(count, data, base_dir, out_dir)
+        outf, _ = get_outcome(count, data, base_dir, out_dir)
         written.add(outf)
 
 
