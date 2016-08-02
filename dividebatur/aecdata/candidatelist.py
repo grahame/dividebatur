@@ -8,9 +8,9 @@ Candidate = collections.namedtuple('Candidate', [
     'candidate_id',
     'surname',
     'given_name',
-    'candidate_order', # Position within the entire ballot, 0 based.
-    'group_id',        # Group ID
-    'ballot_position', # Position within group, 1 based.
+    'candidate_order',  # Position within the entire ballot, 0 based.
+    'group_id',         # Group ID
+    'ballot_position',  # Position within group, 1 based.
     'party_name',
     'party_abbreviation',
 ])
@@ -20,7 +20,7 @@ Group = collections.namedtuple('Group', [
     'group_id',
     'party_name',
     'party_abbreviation',
-    'candidates', # Ordered list of candidates in group
+    'candidates',       # Ordered list of candidates in group
 ])
 
 
@@ -112,7 +112,8 @@ class CandidateList:
             header = next(reader)
             for candidate in named_tuple_iter(
                     'Candidate', reader, header, CandidateID=int):
-                if candidate.StateAb != self.state: continue
+                if candidate.StateAb != self.state:
+                    continue
                 k = (candidate.Surname, candidate.GivenNm, candidate.PartyNm)
                 assert candidate.CandidateID not in seen_ids
                 assert k not in by_name_party

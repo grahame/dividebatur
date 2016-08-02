@@ -3,7 +3,7 @@ import csv
 import re
 from collections import defaultdict
 
-from .candidatelist import CandidateList
+from .candidatelist import CandidateList  # noqa
 from .utils import named_tuple_iter, ticket_sort_key
 from ..counter import Ticket
 
