@@ -1,8 +1,11 @@
 import itertools
 import csv
 import re
-from collections import namedtuple, defaultdict
-from . counter import Ticket
+from collections import defaultdict
+
+from .candidatelist import CandidateList
+from .utils import named_tuple_iter, ticket_sort_key
+from ..counter import Ticket
 
 
 def int_or_none(s):
@@ -12,80 +15,6 @@ def int_or_none(s):
         return int(s)
     except ValueError:
         return None
-
-
-def ticket_sort_key(ticket):
-    "sort key for an ATL ticket, eg. A..Z, AA..ZZ"
-    return (len(ticket), ticket)
-
-
-def named_tuple_iter(name, reader, header, **kwargs):
-    field_names = [t for t in [t.strip().replace('-', '_')
-                               for t in header] if t]
-    typ = namedtuple(name, field_names)
-    mappings = []
-    for field_name in kwargs:
-        idx = field_names.index(field_name)
-        mappings.append((idx, kwargs[field_name]))
-    for row in reader:
-        for idx, map_fn in mappings:
-            row[idx] = map_fn(row[idx])
-        yield typ(*row)
-
-
-class AllCandidates:
-    "parse AEC 'all candidates' CSV file"
-
-    def __init__(self, csv_file, state):
-        self.state = state
-        self.load(csv_file)
-
-    def load(self, csv_file):
-        self.groups = defaultdict(list)
-        with open(csv_file, 'rt') as fd:
-            reader = csv.reader(fd)
-            header = next(reader)
-            for candidate in sorted(named_tuple_iter('AllCandidate', reader, header, ballot_position=int), key=lambda row: (ticket_sort_key(row.ticket), row.ballot_position)):
-                if candidate.state_ab != self.state:
-                    continue
-                if candidate.nom_ty != 'S':
-                    continue
-                self.groups[candidate.ticket].append(candidate)
-
-
-class SenateFlows:
-    "work out the flow per group above the line (post 2015)"
-
-    def __init__(self, candidates, all_candidates):
-        self.groups = []
-        self.flows = defaultdict(list)
-        self.btl = []
-        self.candidate_title = {}
-        self.match(candidates, all_candidates)
-
-    def get_candidate_ids(self):
-        return list(self.btl)
-
-    def get_candidate_title(self, candidate_id):
-        return self.candidate_title[candidate_id]
-
-    def get_candidate_order(self, candidate_id):
-        return self.btl.index(candidate_id)
-
-    def match(self, candidates, all_candidates):
-        # UG: ungrouped (not a real group, placing a '1' in this ATL is a trap). doesn't
-        # count for ATL flows, but does count for BTL ordering
-        all_groups = [t for t in sorted(all_candidates.groups.keys(), key=ticket_sort_key)]
-        for group in all_groups:
-            ac = all_candidates.groups[group]
-            for all_candidate in ac:
-                k = (all_candidate.surname, all_candidate.ballot_given_nm, all_candidate.party_ballot_nm)
-                matched = candidates.by_name_party[k]
-                if group != 'UG':
-                    self.flows[group].append(matched.CandidateID)
-                self.btl.append(matched.CandidateID)
-                self.candidate_title[matched.CandidateID] = matched.Surname + ', ' + matched.GivenNm
-        self.groups = [t for t in all_groups if t != 'UG']
 
 
 class FormalPreferences:

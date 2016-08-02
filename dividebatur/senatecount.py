@@ -9,14 +9,14 @@ import re
 import glob
 from pprint import pprint, pformat
 from .counter import PapersForCount, SenateCounter, Ticket
-from .aecdata import Candidates, SenateATL, SenateBTL, AllCandidates, SenateFlows, FormalPreferences
+from .aecdata import Candidates, CandidateList, SenateATL, SenateBTL, FormalPreferences
 
 
 class SenateCountPost2015:
     def __init__(self, state_name, get_input_file, **kwargs):
-        self.candidates = Candidates(get_input_file('senate-candidates'))
-        self.all_candidates = AllCandidates(get_input_file('all-candidates'), state_name)
-        self.flows = SenateFlows(self.candidates, self.all_candidates)
+        self.candidates = CandidateList(state_name,
+                                        get_input_file('all-candidates'),
+                                        get_input_file('senate-candidates'))
         self.tickets_for_count = PapersForCount()
 
         self.s282_candidates = kwargs.get('s282_candidates')
@@ -24,7 +24,7 @@ class SenateCountPost2015:
 
         def atl_flow(form):
             by_pref = {}
-            for pref, group in zip(form, self.flows.groups):
+            for pref, group in zip(form, self.candidates.groups):
                 if pref is None:
                     continue
                 if pref not in by_pref:
@@ -36,7 +36,8 @@ class SenateCountPost2015:
                 if not at_pref or len(at_pref) != 1:
                     break
                 the_pref = at_pref[0]
-                for candidate_id in self.flows.flows[the_pref]:
+                for candidate in the_pref.candidates:
+                    candidate_id = candidate.candidate_id
                     # s282: exclude candidates not elected in first (full senate) count
                     if self.s282_candidates and candidate_id not in self.s282_candidates:
                         continue
@@ -52,12 +53,12 @@ class SenateCountPost2015:
             else:
                 min_prefs = 6
             by_pref = {}
-            for pref, candidate_id in zip(form, self.flows.btl):
+            for pref, candidate in zip(form, self.candidates.candidates):
                 if pref is None:
                     continue
                 if pref not in by_pref:
                     by_pref[pref] = []
-                by_pref[pref].append(candidate_id)
+                by_pref[pref].append(candidate.candidate_id)
             prefs = []
             for i in range(1, len(form) + 1):
                 at_pref = by_pref.get(i)
@@ -73,8 +74,8 @@ class SenateCountPost2015:
                 return None
             return Ticket(tuple(prefs))
 
-        atl_n = len(self.flows.groups)
-        btl_n = len(self.flows.btl)
+        atl_n = len(self.candidates.groups)
+        btl_n = len(self.candidates.candidates)
         informal_n = 0
         n_ballots = 0
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
@@ -96,21 +97,24 @@ class SenateCountPost2015:
         return self.tickets_for_count
 
     def get_candidate_ids(self):
-        if not self.s282_candidates:
-            return self.flows.get_candidate_ids()
-        return [t for t in self.flows.get_candidate_ids() if t in self.s282_candidates]
+        candidate_ids = [c.candidate_id for c in self.candidates.candidates]
+        if self.s282_candidates:
+            candidate_ids = [t for t in candidate_ids if t in self.s282_candidates]
+        return candidate_ids
 
     def get_parties(self):
-        return self.candidates.get_parties()
+        return dict((c.party_abbreviation, c.party_name)
+                    for c in self.candidates.candidates)
 
     def get_candidate_title(self, candidate_id):
-        return self.flows.get_candidate_title(candidate_id)
+        c = self.candidates.candidate_by_id[candidate_id]
+        return "{}, {}".format(c.surname, c.given_name)
 
     def get_candidate_order(self, candidate_id):
-        return self.flows.get_candidate_order(candidate_id)
+        return self.candidates.candidate_by_id[candidate_id].candidate_order
 
     def get_candidate_party(self, candidate_id):
-        return self.candidates.lookup_id(candidate_id).PartyAb
+        return self.candidates.candidate_by_id[candidate_id].party_abbreviation
 
 
 class SenateCountPre2015:
