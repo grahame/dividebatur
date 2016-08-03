@@ -8,7 +8,7 @@ import difflib
 import re
 import glob
 from pprint import pprint, pformat
-from .counter import PapersForCount, SenateCounter, Ticket
+from .counter import PapersForCount, SenateCounter
 from .aecdata import CandidateList, SenateATL, SenateBTL, FormalPreferences
 
 
@@ -41,10 +41,10 @@ class SenateCountPost2015:
                     # s282: exclude candidates not elected in first (full senate) count
                     if self.s282_candidates and candidate_id not in self.s282_candidates:
                         continue
-                    prefs.append((len(prefs) + 1, candidate_id))
+                    prefs.append(candidate_id)
             if not prefs:
                 return None
-            return Ticket(prefs)
+            return prefs
 
         def btl_flow(form):
             if self.s282_candidates:
@@ -68,11 +68,11 @@ class SenateCountPost2015:
                 # s282: exclude candidates not elected in first (full senate) count
                 if self.s282_candidates and candidate_id not in self.s282_candidates:
                     continue
-                prefs.append((len(prefs) + 1, candidate_id))
+                prefs.append(candidate_id)
             # must have unique prefs for 1..6, or informal
             if len(prefs) < min_prefs:
                 return None
-            return Ticket(prefs)
+            return prefs
 
         atl_n = len(self.candidates.groups)
         btl_n = len(self.candidates.candidates)
@@ -86,7 +86,7 @@ class SenateCountPost2015:
             btl = raw_form[atl_n:]
             form = btl_flow(btl) or atl_flow(atl)
             if form:
-                self.tickets_for_count.add_ticket(form, count)
+                self.tickets_for_count.add_ticket(tuple(form), count)
             else:
                 informal_n += count
             n_ballots += count
@@ -135,8 +135,8 @@ class SenateCountPre2015:
         def load_tickets(ticket_obj):
             if ticket_obj is None:
                 return
-            for ticket, n in ticket_obj.get_tickets():
-                self.tickets_for_count.add_ticket(ticket, n)
+            for form, n in ticket_obj.get_tickets():
+                self.tickets_for_count.add_ticket(form, n)
         self.tickets_for_count = PapersForCount()
         load_tickets(self.atl)
         load_tickets(self.btl)

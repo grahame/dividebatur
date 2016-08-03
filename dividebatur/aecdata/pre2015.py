@@ -3,7 +3,6 @@ import csv
 from collections import defaultdict
 
 from .utils import int_or_none, named_tuple_iter, ticket_sort_key
-from ..counter import Ticket
 
 
 class SenateATL:
@@ -14,7 +13,6 @@ class SenateATL:
         self.gvt = defaultdict(list)
         self.ticket_votes = []
         self.btl_firstprefs = {}
-        self.raw_ticket_data = []
         self.load_tickets(gvt_csv)
         self.load_first_preferences(state_name, firstprefs_csv)
 
@@ -24,6 +22,7 @@ class SenateATL:
             # skip introduction line
             next(reader)
             header = next(reader)
+            # note - this assume the GVT data is formal. FIXME: add a check for this.
             it = sorted(
                 named_tuple_iter('GvtRow', reader, header, PreferenceNo=int, TicketNo=int, CandidateID=int, OwnerTicket=lambda t: t.strip()),
                 key=lambda gvt: (gvt.State, ticket_sort_key(gvt.OwnerTicket), gvt.TicketNo, gvt.PreferenceNo))
@@ -33,12 +32,8 @@ class SenateATL:
                     continue
                 prefs = []
                 for ticket_entry in g:
-                    prefs.append(
-                        (ticket_entry.PreferenceNo, ticket_entry.CandidateID))
-
-                non_none = [x for x in prefs if x[0] is not None]
-                self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
-                self.gvt[ticket].append(Ticket(tuple(prefs)))
+                    prefs.append(ticket_entry.CandidateID)
+                self.gvt[ticket].append(tuple(prefs))
 
     def load_first_preferences(self, state_name, firstprefs_csv):
         with open(firstprefs_csv, 'rt') as fd:
@@ -80,7 +75,6 @@ class SenateBTL:
 
     def __init__(self, btl_csv):
         self.ticket_votes = defaultdict(int)
-        self.raw_ticket_data = []
         self.load_btl(btl_csv)
 
     def load_btl(self, btl_csv):
@@ -98,13 +92,16 @@ class SenateBTL:
                 CandidateId=int)
             self.total_ticket_data = []
             for key, g in itertools.groupby(it, lambda r: (r.Batch, r.Paper)):
-                ticket_data = []
+                bypref = defaultdict(list)
                 for row in sorted(g, key=lambda x: x.CandidateId):
-                    ticket_data.append((row.Preference, row.CandidateId))
-                non_none = [x for x in ticket_data if x[0] is not None]
-                self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
-                ticket = Ticket(ticket_data)
-                self.ticket_votes[ticket] += 1
+                    bypref[row.Preference].append(row.CandidateId)
+                flow = []
+                for pref in range(1, len(bypref) + 1):
+                    at_pref = bypref.get(pref)
+                    if not at_pref or len(at_pref) != 1:
+                        break
+                    flow.append(at_pref[0])
+                self.ticket_votes[tuple(flow)] += 1
 
     def get_tickets(self):
         for ticket in sorted(self.ticket_votes, key=lambda x: self.ticket_votes[x]):

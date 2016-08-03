@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import itertools
 import json
 import fractions
@@ -6,42 +6,13 @@ import os
 from .output import JsonOutput, RoundLog, LogEntry
 
 
-class Ticket:
-    """
-    a preference flow; describes a preference flow and maintains state for it
-    during the count
+TicketState = namedtuple("TicketState", ("Preferences", "UpTo"))
 
-    This class is hashable, so that PapersForCount can sum up equivalent papers
-    (to reduce memory use, and speed up the count.)
-    """
 
-    def __init__(self, preferences):
-        "preferences is a list, [(PreferenceNo, CandidateId), ...]"
-        self.preferences = tuple(sorted(preferences, key=lambda x: x[1]))
-        self.transfer_value = fractions.Fraction(1, 1)
-        self.transfers = []
-        self.up_to_preference = 1
-
-    def __eq__(self, other):
-        return other.preferences == self.preferences
-
-    def __hash__(self):
-        return hash(self.preferences)
-
-    def next_preference(self):
-        self.up_to_preference += 1
-
-    def get_preference(self):
-        "note that if there are multiple preferences for the current pref, returns None (exhausts)"
-        matches = []
-        for pref, candidate in self.preferences:
-            if pref == self.up_to_preference:
-                matches.append(candidate)
-        if len(matches) == 1:
-            return matches[0]
-
-    def __repr__(self):
-        return "<Ticket>"
+def get_preference(ticket_state):
+    if ticket_state.UpTo < len(ticket_state.Preferences):
+        return ticket_state.Preferences[ticket_state.UpTo]
+    return None
 
 
 class ExclusionReason:
@@ -64,7 +35,6 @@ class PapersForCount:
         self.papers = defaultdict(int)
 
     def add_ticket(self, ticket, n):
-        assert(isinstance(ticket, Ticket))
         self.papers[ticket] += n
 
     def __iter__(self):
@@ -77,14 +47,17 @@ class PaperBundle:
     were distributed under
     """
 
-    def __init__(self, ticket, size, transfer_value):
-        self.ticket, self.size, self.transfer_value = ticket, size, transfer_value
+    def __init__(self, ticket_state, size, transfer_value):
+        self.ticket_state, self.size, self.transfer_value = ticket_state, size, transfer_value
 
     def get_size(self):
         return self.size
 
-    def get_ticket(self):
-        return self.ticket
+    def get_ticket_state(self):
+        return self.ticket_state
+
+    def set_ticket_state(self, ticket_state):
+        self.ticket_state = ticket_state
 
     def get_transfer_value(self):
         return self.transfer_value
@@ -147,11 +120,12 @@ class CandidateBundleTransactions:
         # go through each ticket and count in the papers and assign by first preference
         bundles_to_candidate = defaultdict(list)
         for ticket, count in papers_for_count:
+            state = TicketState(ticket, 0)
             # first preferences, by flow
-            pref = ticket.get_preference()
+            pref = get_preference(state)
             if pref is None:
                 continue
-            bundles_to_candidate[pref].append(PaperBundle(ticket, count, fractions.Fraction(1, 1)))
+            bundles_to_candidate[pref].append(PaperBundle(state, count, fractions.Fraction(1, 1)))
         for candidate_id in bundles_to_candidate:
             self.candidate_bundle_transactions[candidate_id].append(BundleTransaction(bundles_to_candidate[candidate_id]))
 
@@ -380,18 +354,21 @@ class SenateCounter:
             candidate_votes[candidate_id] = int(candidate_votes[candidate_id])
         return candidate_votes, 0, 0
 
-    def get_next_preference(self, ticket):
+    def bundle_to_next_candidate(self, bundle):
         """
-        returns the next preference expressed in the ticket, skipping any elected/excluded candidates
-        if no preferences remain (exhauseted ballot) returns None
+        returns the next candidate_it of the next preference expressed in the ticket 
+        for this bundle, and the next ticket_state after preferences are moved along
+        if the vote exhausts, candidate_id will be None
         """
+        ticket_state = bundle.get_ticket_state()
         while True:
-            ticket.next_preference()
-            candidate_id = ticket.get_preference()
-            if candidate_id is None:
-                return
-            if candidate_id not in self.candidates_elected and candidate_id not in self.candidates_excluded:
-                return candidate_id
+            ticket_state = TicketState(ticket_state.Preferences, ticket_state.UpTo + 1)
+            candidate_id = get_preference(ticket_state)
+            # if the preference passes through an elected or excluded candidate, we
+            # skip over it
+            if candidate_id in self.candidates_elected or candidate_id in self.candidates_excluded:
+                continue
+            return candidate_id, ticket_state
 
     def distribute_bundle_transactions(self, candidate_votes, bundle_transactions_to_distribute, transfer_value):
         "bundle_transactions_to_distribute is an array of tuples, [(CandidateFrom, BundleTransactions)]"
@@ -411,12 +388,11 @@ class SenateCounter:
 
                 for bundle in bundle_transaction:
                     # determine the candidate(s) that this bundle of papers flows to
-                    ticket = bundle.get_ticket()
-                    to_candidate = self.get_next_preference(ticket)
+                    to_candidate, next_ticket_state = self.bundle_to_next_candidate(bundle)
                     if to_candidate is None:
                         exhausted_papers += bundle.get_size()
                         continue
-                    incoming_tickets[to_candidate].append((ticket, bundle.get_size()))
+                    incoming_tickets[to_candidate].append((next_ticket_state, bundle.get_size()))
 
         for candidate_id in sorted(incoming_tickets, key=self.candidate_order):
             bundles_moving = []
