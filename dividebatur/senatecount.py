@@ -22,7 +22,7 @@ class SenateCountPost2015:
         self.s282_candidates = kwargs.get('s282_candidates')
         self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
 
-        def atl_flow(form):
+        def atl_flow(form, limit_candidates=None):
             by_pref = {}
             for pref, group in zip(form, self.candidates.groups):
                 if pref is None:
@@ -39,15 +39,15 @@ class SenateCountPost2015:
                 for candidate in the_pref.candidates:
                     candidate_id = candidate.candidate_id
                     # s282: exclude candidates not elected in first (full senate) count
-                    if self.s282_candidates and candidate_id not in self.s282_candidates:
+                    if limit_candidates and candidate_id not in limit_candidates:
                         continue
                     prefs.append(candidate_id)
             if not prefs:
                 return None
             return prefs
 
-        def btl_flow(form):
-            if self.s282_candidates:
+        def btl_flow(form, limit_candidates=None):
+            if limit_candidates:
                 # s282: only 273(7) to (30) apply, so don't exclude informal BTL votes
                 min_prefs = 1
             else:
@@ -66,7 +66,7 @@ class SenateCountPost2015:
                     break
                 candidate_id = at_pref[0]
                 # s282: exclude candidates not elected in first (full senate) count
-                if self.s282_candidates and candidate_id not in self.s282_candidates:
+                if limit_candidates and candidate_id not in limit_candidates:
                     continue
                 prefs.append(candidate_id)
             # must have unique prefs for 1..6, or informal
@@ -83,9 +83,19 @@ class SenateCountPost2015:
             if self.max_tickets and n_ballots >= self.max_tickets:
                 return
             # BTL takes precedence
-            atl = raw_form[:atl_n]
-            btl = raw_form[atl_n:]
-            form = btl_flow(btl) or atl_flow(atl)
+            if not self.s282_candidates:
+                atl = raw_form[:atl_n]
+                btl = raw_form[atl_n:]
+                form = btl_flow(btl) or atl_flow(atl)
+            else:
+                atl = raw_form[:atl_n]
+                btl = raw_form[atl_n:]
+                # check formal under a non 218 ballot below-the-line. if
+                # so, BTL form with limitation is applied.
+                if btl_flow(btl):
+                    form = btl_flow(btl, self.s282_candidates)
+                else:
+                    form = atl_flow(atl, self.s282_candidates)
             if form:
                 self.tickets_for_count.add_ticket(tuple(form), count)
             else:
