@@ -251,7 +251,7 @@ def json_count_path(out_dir, shortname):
     return os.path.join(out_dir, shortname + '.json')
 
 
-def get_outcome(count, count_data, base_dir, out_dir):
+def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
     test_logs_okay = True
     test_log_dir = None
     if 'verified' in count:
@@ -274,7 +274,8 @@ def get_outcome(count, count_data, base_dir, out_dir):
         description=count.get('description'),
         house=count['house'],
         state=count['state'])
-    automation_fn = make_automation(count.get('automation', []))
+    if automation_fn is None:
+        automation_fn = make_automation(count.get('automation', []))
     counter.set_election_order_callback(automation_fn)
     counter.set_candidate_tie_callback(automation_fn)
     counter.run()
