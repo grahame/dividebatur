@@ -1,11 +1,10 @@
 #!/bin/bash
 
-set -e
+set -eux
 
-pip3 install flake8
-pip3 install nose
+NOSETESTS=$(which nosetests3 || which nosetests)
 
-nosetests -v dividebatur
+$NOSETESTS -v dividebatur
 
 for i in aec_data/*/verified.json; do
     time python3 -m dividebatur.senatecount "$i" './angular/data/'
