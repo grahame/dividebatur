@@ -356,7 +356,7 @@ class SenateCounter:
 
     def bundle_to_next_candidate(self, bundle):
         """
-        returns the next candidate_it of the next preference expressed in the ticket 
+        returns the next candidate_it of the next preference expressed in the ticket
         for this bundle, and the next ticket_state after preferences are moved along
         if the vote exhausts, candidate_id will be None
         """
