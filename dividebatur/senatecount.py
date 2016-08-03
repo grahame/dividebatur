@@ -22,7 +22,7 @@ class SenateCountPost2015:
         self.s282_candidates = kwargs.get('s282_candidates')
         self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
 
-        def atl_flow(form, limit_candidates=None):
+        def atl_flow(form):
             by_pref = {}
             for pref, group in zip(form, self.candidates.groups):
                 if pref is None:
@@ -38,20 +38,12 @@ class SenateCountPost2015:
                 the_pref = at_pref[0]
                 for candidate in the_pref.candidates:
                     candidate_id = candidate.candidate_id
-                    # s282: exclude candidates not elected in first (full senate) count
-                    if limit_candidates and candidate_id not in limit_candidates:
-                        continue
                     prefs.append(candidate_id)
             if not prefs:
                 return None
             return prefs
 
-        def btl_flow(form, limit_candidates=None):
-            if limit_candidates:
-                # s282: only 273(7) to (30) apply, so don't exclude informal BTL votes
-                min_prefs = 1
-            else:
-                min_prefs = 6
+        def btl_flow(form):
             by_pref = {}
             for pref, candidate in zip(form, self.candidates.candidates):
                 if pref is None:
@@ -65,12 +57,9 @@ class SenateCountPost2015:
                 if not at_pref or len(at_pref) != 1:
                     break
                 candidate_id = at_pref[0]
-                # s282: exclude candidates not elected in first (full senate) count
-                if limit_candidates and candidate_id not in limit_candidates:
-                    continue
                 prefs.append(candidate_id)
             # must have unique prefs for 1..6, or informal
-            if len(prefs) < min_prefs:
+            if len(prefs) < 6:
                 return None
             return prefs
 
@@ -82,21 +71,17 @@ class SenateCountPost2015:
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
             if self.max_tickets and n_ballots >= self.max_tickets:
                 return
+            atl = raw_form[:atl_n]
+            btl = raw_form[atl_n:]
             # BTL takes precedence
-            if not self.s282_candidates:
-                atl = raw_form[:atl_n]
-                btl = raw_form[atl_n:]
-                form = btl_flow(btl) or atl_flow(atl)
-            else:
-                atl = raw_form[:atl_n]
-                btl = raw_form[atl_n:]
-                # check formal under a non 218 ballot below-the-line. if
-                # so, BTL form with limitation is applied.
-                if btl_flow(btl):
-                    form = btl_flow(btl, self.s282_candidates)
-                else:
-                    form = atl_flow(atl, self.s282_candidates)
-            if form:
+            form = btl_flow(btl) or atl_flow(atl)
+            # s282: take the original form, and limit to the candidates who are running now
+            # if there is no preference expressed, the ballot becomes informal
+            if self.s282_candidates:
+                form = [candidate_id for candidate_id in form if candidate_id in self.s282_candidates]
+                if len(form) == 0:
+                    form = None
+            if form is not None:
                 self.tickets_for_count.add_ticket(tuple(form), count)
             else:
                 informal_n += count
