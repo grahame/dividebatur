@@ -13,9 +13,6 @@ class SenateATL:
         self.state_name = state_name
         self.gvt = defaultdict(list)
         self.ticket_votes = []
-        self.individual_candidate_ids = []
-        self.candidate_order = {}
-        self.candidate_title = {}
         self.btl_firstprefs = {}
         self.raw_ticket_data = []
         self.load_tickets(gvt_csv)
@@ -57,9 +54,6 @@ class SenateATL:
                     elif row.CandidateDetails != 'Unapportioned':
                         assert(row.CandidateID not in self.btl_firstprefs)
                         self.btl_firstprefs[row.CandidateID] = row.TotalVotes
-                        self.individual_candidate_ids.append(row.CandidateID)
-                self.candidate_order[row.CandidateID] = idx
-                self.candidate_title[row.CandidateID] = row.CandidateDetails
 
     def get_tickets(self):
         # GVT handling: see s272 of the electoral act (as collated in 2013)
@@ -75,15 +69,6 @@ class SenateATL:
             # remainder_pattern = [0] * (size-remainder) + [1] * remainder
             for ticket, extra in zip(self.gvt[group], remainder_pattern):
                 yield ticket, int(n / size) + extra
-
-    def get_candidate_ids(self):
-        return self.individual_candidate_ids
-
-    def get_candidate_order(self, candidate_id):
-        return self.candidate_order[candidate_id]
-
-    def get_candidate_title(self, candidate_id):
-        return self.candidate_title[candidate_id]
 
 
 class SenateBTL:
