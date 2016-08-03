@@ -76,6 +76,7 @@ class SenateCountPost2015:
 
         atl_n = len(self.candidates.groups)
         btl_n = len(self.candidates.candidates)
+        assert(atl_n > 0 and btl_n > 0)
         informal_n = 0
         n_ballots = 0
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
