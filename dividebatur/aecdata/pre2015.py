@@ -6,62 +6,26 @@ from .utils import int_or_none, named_tuple_iter, ticket_sort_key
 from ..counter import Ticket
 
 
-class Candidates:
-    "parses AEC candidates CSV file"
-
-    def __init__(self, candidates_csv):
-        self.by_id = {}
-        self.by_name_party = {}
-        self.candidates = []
-        self.load(candidates_csv)
-
-    def load(self, candidates_csv):
-        with open(candidates_csv, 'rt') as fd:
-            reader = csv.reader(fd)
-            next(reader)  # skip the version
-            header = next(reader)
-            for candidate in named_tuple_iter(
-                    'Candidate', reader, header, CandidateID=int):
-                self.candidates.append(candidate)
-                assert(candidate.CandidateID not in self.by_id)
-                self.by_id[candidate.CandidateID] = candidate
-                k = (candidate.Surname, candidate.GivenNm, candidate.PartyNm)
-                assert(k not in self.by_name_party)
-                self.by_name_party[k] = candidate
-
-    def lookup_id(self, candidate_id):
-        return self.by_id[candidate_id]
-
-    def lookup_name_party(self, surname, given_name, party):
-        return self.by_name_party[(surname, given_name, party)]
-
-    def get_parties(self):
-        return dict((t.PartyAb, t.PartyNm) for t in self.candidates if t)
-
-
 class SenateATL:
     "parses AEC candidates Senate ATL data file (pre-2015)"
 
-    def __init__(self, state_name, candidates, gvt_csv, firstprefs_csv):
+    def __init__(self, state_name, gvt_csv, firstprefs_csv):
         self.state_name = state_name
         self.gvt = defaultdict(list)
         self.ticket_votes = []
-        self.individual_candidate_ids = []
-        self.candidate_order = {}
-        self.candidate_title = {}
         self.btl_firstprefs = {}
         self.raw_ticket_data = []
-        self.load_tickets(candidates, gvt_csv)
+        self.load_tickets(gvt_csv)
         self.load_first_preferences(state_name, firstprefs_csv)
 
-    def load_tickets(self, candidates, gvt_csv):
+    def load_tickets(self, gvt_csv):
         with open(gvt_csv, 'rt') as fd:
             reader = csv.reader(fd)
             # skip introduction line
             next(reader)
             header = next(reader)
             it = sorted(
-                named_tuple_iter('GvtRow', reader, header, PreferenceNo=int, TicketNo=int, OwnerTicket=lambda t: t.strip()),
+                named_tuple_iter('GvtRow', reader, header, PreferenceNo=int, TicketNo=int, CandidateID=int, OwnerTicket=lambda t: t.strip()),
                 key=lambda gvt: (gvt.State, ticket_sort_key(gvt.OwnerTicket), gvt.TicketNo, gvt.PreferenceNo))
             for (state_ab, ticket, ticket_no), g in itertools.groupby(
                     it, lambda gvt: (gvt.State, gvt.OwnerTicket, gvt.TicketNo)):
@@ -69,10 +33,8 @@ class SenateATL:
                     continue
                 prefs = []
                 for ticket_entry in g:
-                    candidate = candidates.lookup_name_party(
-                        ticket_entry.Surname, ticket_entry.GivenNm, ticket_entry.PartyNm)
                     prefs.append(
-                        (ticket_entry.PreferenceNo, candidate.CandidateID))
+                        (ticket_entry.PreferenceNo, ticket_entry.CandidateID))
 
                 non_none = [x for x in prefs if x[0] is not None]
                 self.raw_ticket_data.append(sorted(non_none, key=lambda x: x[0]))
@@ -92,9 +54,6 @@ class SenateATL:
                     elif row.CandidateDetails != 'Unapportioned':
                         assert(row.CandidateID not in self.btl_firstprefs)
                         self.btl_firstprefs[row.CandidateID] = row.TotalVotes
-                        self.individual_candidate_ids.append(row.CandidateID)
-                self.candidate_order[row.CandidateID] = idx
-                self.candidate_title[row.CandidateID] = row.CandidateDetails
 
     def get_tickets(self):
         # GVT handling: see s272 of the electoral act (as collated in 2013)
@@ -111,15 +70,6 @@ class SenateATL:
             for ticket, extra in zip(self.gvt[group], remainder_pattern):
                 yield ticket, int(n / size) + extra
 
-    def get_candidate_ids(self):
-        return self.individual_candidate_ids
-
-    def get_candidate_order(self, candidate_id):
-        return self.candidate_order[candidate_id]
-
-    def get_candidate_title(self, candidate_id):
-        return self.candidate_title[candidate_id]
-
 
 class SenateBTL:
     """
@@ -128,12 +78,12 @@ class SenateBTL:
     (pre-2015)
     """
 
-    def __init__(self, candidates, btl_csv):
+    def __init__(self, btl_csv):
         self.ticket_votes = defaultdict(int)
         self.raw_ticket_data = []
-        self.load_btl(candidates, btl_csv)
+        self.load_btl(btl_csv)
 
-    def load_btl(self, candidates, btl_csv):
+    def load_btl(self, btl_csv):
         with open(btl_csv, 'rt') as fd:
             reader = csv.reader(fd)
             next(reader)  # skip the version

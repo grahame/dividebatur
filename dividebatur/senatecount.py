@@ -9,7 +9,7 @@ import re
 import glob
 from pprint import pprint, pformat
 from .counter import PapersForCount, SenateCounter, Ticket
-from .aecdata import Candidates, CandidateList, SenateATL, SenateBTL, FormalPreferences
+from .aecdata import CandidateList, SenateATL, SenateBTL, FormalPreferences
 
 
 class SenateCountPost2015:
@@ -123,13 +123,14 @@ class SenateCountPre2015:
         if 's282_recount' in kwargs:
             raise Exception('s282 recount not implemented for pre2015 data')
 
-        self.candidates = Candidates(get_input_file('senate-candidates'))
+        self.candidates = CandidateList(state_name,
+                                        get_input_file('all-candidates'),
+                                        get_input_file('senate-candidates'))
         self.atl = SenateATL(
             state_name,
-            self.candidates,
             get_input_file('group-voting-tickets'),
             get_input_file('first-preferences'))
-        self.btl = SenateBTL(self.candidates, get_input_file('btl-preferences'))
+        self.btl = SenateBTL(get_input_file('btl-preferences'))
 
         def load_tickets(ticket_obj):
             if ticket_obj is None:
@@ -144,19 +145,21 @@ class SenateCountPre2015:
         return self.tickets_for_count
 
     def get_candidate_ids(self):
-        return self.atl.get_candidate_ids()
+        return [c.candidate_id for c in self.candidates.candidates]
 
     def get_parties(self):
-        return self.candidates.get_parties()
+        return dict((c.party_abbreviation, c.party_name)
+                    for c in self.candidates.candidates)
 
     def get_candidate_title(self, candidate_id):
-        return self.atl.get_candidate_title(candidate_id)
+        c = self.candidates.candidate_by_id[candidate_id]
+        return "{}, {}".format(c.surname, c.given_name)
 
     def get_candidate_order(self, candidate_id):
-        return self.atl.get_candidate_order(candidate_id)
+        return self.candidates.candidate_by_id[candidate_id].candidate_order
 
     def get_candidate_party(self, candidate_id):
-        return self.candidates.lookup_id(candidate_id).PartyAb
+        return self.candidates.candidate_by_id[candidate_id].party_abbreviation
 
 
 def verify_test_logs(verified_dir, test_log_dir):
@@ -251,7 +254,7 @@ def json_count_path(out_dir, shortname):
     return os.path.join(out_dir, shortname + '.json')
 
 
-def get_outcome(count, count_data, base_dir, out_dir):
+def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
     test_logs_okay = True
     test_log_dir = None
     if 'verified' in count:
@@ -274,7 +277,8 @@ def get_outcome(count, count_data, base_dir, out_dir):
         description=count.get('description'),
         house=count['house'],
         state=count['state'])
-    automation_fn = make_automation(count.get('automation', []))
+    if automation_fn is None:
+        automation_fn = make_automation(count.get('automation', []))
     counter.set_election_order_callback(automation_fn)
     counter.set_candidate_tie_callback(automation_fn)
     counter.run()

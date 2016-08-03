@@ -314,7 +314,7 @@ class SenateCounter:
         if self.candidate_tie_callback is not None:
             resp = self.candidate_tie_callback(candidates)
         if resp is not None:
-            entry.log("%s\nautomation: '%s' entered" % (qn, resp), echo=True)
+            entry.log("%s\nautomation: '%s' entered" % (qn, resp + 1), echo=True)
             return resp
         else:
             entry.log(qn, echo=True, end='')
@@ -352,7 +352,7 @@ class SenateCounter:
                 with LogEntry(round_log) as entry:
                     entry.log("Multiple candidates elected with %d votes." % (votes), echo=True)
                     for candidate_id in candidate_ids:
-                        entry.log("    %s" % (self.candidate_title[candidate_id]), echo=True)
+                        entry.log("    %s" % (self.candidate_title(candidate_id)), echo=True)
                     tie_breaker_round = self.find_tie_breaker(candidate_ids)
                     if tie_breaker_round is not None:
                         entry.log("Tie broken from previous totals", echo=True)
@@ -609,7 +609,7 @@ class SenateCounter:
         sorted_candidate_ids = list(sorted(candidate_ids, key=self.candidate_title))
         for idx, candidate_id in enumerate(sorted_candidate_ids):
             entry.log("[%3d] - %s" % (idx + 1, self.candidate_title(candidate_id)), echo=True)
-        return sorted_candidate_ids[self.determine_candidate_tie(entry, question, len(sorted_candidate_ids))]
+        return sorted_candidate_ids[self.determine_candidate_tie(entry, question, sorted_candidate_ids)]
 
     def candidate_to_exclude(self, round_log, candidate_aggregates):
         def eligible(candidate_id):
