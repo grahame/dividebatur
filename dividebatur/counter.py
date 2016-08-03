@@ -406,6 +406,8 @@ class SenateCounter:
         return exhausted_votes, exhausted_papers
 
     def elect(self, round_log, round_number, candidate_aggregates, candidate_id):
+        # somewhat paranoid cross-check, but we've had this bug before..
+        assert(candidate_id not in self.candidates_elected)
         self.candidates_elected[candidate_id] = {
             'order': len(self.candidates_elected) + 1,
             'round': round_number
@@ -423,6 +425,12 @@ class SenateCounter:
         round_log.add_elected(candidate_id, len(self.candidates_elected), transfer)
 
     def exclude_candidates(self, candidates, round_log, round_number, reason):
+        # put some paranoia around exclusion: we want to make sure that
+        # `candidates` is unique, and that none of these candidates have
+        # been previously excluded
+        for candidate_id in candidates:
+            assert(candidate_id not in self.candidates_excluded)
+        assert(len(set(candidates)) == len(candidates))
         # transfers to run, and the candidates distributed in them
         transfers_applicable = defaultdict(set)
         for candidate_id in candidates:
@@ -821,7 +829,7 @@ class SenateCounter:
                 if len(in_the_running) == still_to_elect:
                     with LogEntry(round_log) as entry:
                         entry.log("Final %d vacancies filled from last candidates standing, in accordance with section 273(18)." % (still_to_elect), echo=True)
-                        for candidate in reversed(sorted(in_the_running, key=lambda c: candidate_aggregates.get_vote_count(c))):
+                        for candidate_id in reversed(sorted(in_the_running, key=lambda c: candidate_aggregates.get_vote_count(c))):
                             self.elect(round_log, round_number, candidate_aggregates, candidate_id)
                             affected.add(candidate_id)
                     return False
