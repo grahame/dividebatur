@@ -1,6 +1,15 @@
 from collections import namedtuple
 
 
+def int_or_none(s):
+    if s == '':
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
 def named_tuple_iter(name, reader, header, **kwargs):
     field_names = [t for t in [t.strip().replace('-', '_')
                                for t in header] if t]
