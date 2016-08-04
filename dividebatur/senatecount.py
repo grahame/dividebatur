@@ -258,6 +258,7 @@ def write_angular_json(config, out_dir):
         }
         obj['counts'] = [{
             'name': count['name'],
+            'state': count['state'],
             'description': count['description'],
             'path': count['shortname']}
             for count in config['count']]
