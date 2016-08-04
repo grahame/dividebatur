@@ -272,10 +272,11 @@ class SenateCounter:
         if self.election_order_callback is not None:
             resp = self.election_order_callback(candidate_permutations)
         if resp is not None:
-            entry.log("%s\nautomation: '%s' entered" % (qn, resp + 1), echo=True)
+            entry.log("%s" % (qn))
+            entry.log("automation: '%s' entered" % (resp + 1), echo=True)
             return resp
         else:
-            entry.log(qn, echo=True, end='')
+            entry.log(qn, echo=True)
             return int(input()) - 1
 
     def determine_candidate_tie(self, entry, qn, candidates):
@@ -288,10 +289,11 @@ class SenateCounter:
         if self.candidate_tie_callback is not None:
             resp = self.candidate_tie_callback(candidates)
         if resp is not None:
-            entry.log("%s\nautomation: '%s' entered" % (qn, resp + 1), echo=True)
+            entry.log("%s" % (qn))
+            entry.log("automation: '%s' entered" % (resp + 1), echo=True)
             return resp
         else:
-            entry.log(qn, echo=True, end='')
+            entry.log(qn, echo=True)
             return int(input()) - 1
 
     def determine_quota(self):

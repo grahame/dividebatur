@@ -1,6 +1,6 @@
-import sys
 import datetime
 import json
+from .common import logger
 
 
 class LogEntry:
@@ -12,10 +12,10 @@ class LogEntry:
     def __enter__(self):
         return self
 
-    def log(self, line, echo=False, end=None):
+    def log(self, line, echo=False):
         self.lines.append(line)
         if echo:
-            print(line, file=sys.stderr, end=end)
+            logger.info(line)
 
     def __exit__(self, type, value, tb):
         self.output_to.add_note('\n'.join(self.lines))

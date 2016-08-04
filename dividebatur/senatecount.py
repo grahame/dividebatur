@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 
+import argparse
+import tempfile
+import logging
+import difflib
+import glob
+import json
 import sys
 import os
-import json
-import tempfile
-import difflib
 import re
-import glob
-from pprint import pprint, pformat
+from pprint import pformat
 from .counter import PapersForCount, SenateCounter
 from .aecdata import CandidateList, SenateATL, SenateBTL, FormalPreferences
+from .common import logger
 
 
 class SenateCountPost2015:
@@ -124,7 +127,8 @@ class SenateCountPost2015:
             n_ballots += count
         # slightly paranoid check, but outside the busy loop
         assert(len(raw_form) == atl_n + btl_n)
-        print("note: %d ballots informal and excluded from the count" % informal_n)
+        if informal_n > 0:
+            logger.info("%d ballots are informal and were excluded from the count" % (informal_n))
 
     def get_tickets_for_count(self):
         return self.tickets_for_count
@@ -213,20 +217,20 @@ def verify_test_logs(verified_dir, test_log_dir):
         v = getlog(verified_dir, idx)
         t = getlog(test_log_dir, idx)
         if v != t:
-            print("Round %d: FAIL" % idx)
-            print("Log should be:")
-            pprint(v)
-            print("Log is:")
-            pprint(t)
-            print("Diff:")
-            print(
+            logger.error("Round %d: FAIL" % (idx))
+            logger.error("Log should be:")
+            logger.error(pformat(v))
+            logger.error("Log is:")
+            logger.error(pformat(t))
+            logger.error("Diff:")
+            logger.error(
                 '\n'.join(
                     difflib.unified_diff(
                         pformat(v).split('\n'),
                         pformat(t).split('\n'))))
             ok = False
         else:
-            print("Round %d: OK" % idx)
+            logger.debug("Round %d: OK" % (idx))
     if ok and len(rounds) > 0:
         for fname in os.listdir(test_log_dir):
             if test_re.match(fname):
@@ -242,7 +246,7 @@ def read_config(config_file):
 
 def cleanup_json(out_dir):
     for fname in glob.glob(out_dir + '/*.json'):
-        print("cleanup: removing `%s'" % (fname))
+        logger.debug("cleanup: removing `%s'" % (fname))
         os.unlink(fname)
 
 
@@ -291,9 +295,9 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
     test_log_dir = None
     if 'verified' in count:
         test_log_dir = tempfile.mkdtemp(prefix='dividebatur_tmp')
-        print("test logs are written to: %s" % (test_log_dir))
+        logger.debug("test logs are written to: %s" % (test_log_dir))
     outf = json_count_path(out_dir, count['shortname'])
-    print("counting %s -> %s" % (count['name'], outf))
+    logger.info("counting `%s'. output written to `%s'" % (count['name'], outf))
     counter = SenateCounter(
         outf,
         count['vacancies'],
@@ -318,7 +322,7 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
         if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
             test_logs_okay = False
     if not test_logs_okay:
-        print("** TESTS FAILED **")
+        logger.error("** TESTS FAILED **")
         sys.exit(1)
     return (outf, counter.output.summary)
 
@@ -349,7 +353,7 @@ def s282_options(out_dir, count, written):
         return options
     fname = json_count_path(out_dir, shortname)
     if fname not in written:
-        print("error: `%s' needed for s282 recount has not been calculated during this dividebatur run." % (fname))
+        logger.error("error: `%s' needed for s282 recount has not been calculated during this dividebatur run." % (fname))
         sys.exit(1)
     with open(fname) as fd:
         data = json.load(fd)
@@ -361,16 +365,36 @@ def check_config(config):
     "basic checks that the configuration file is valid"
     shortnames = [count['shortname'] for count in config['count']]
     if len(shortnames) != len(set(shortnames)):
-        print("error: duplicate `shortname' in count configuration.")
+        logger.error("error: duplicate `shortname' in count configuration.")
         return False
     return True
 
 
-def main(config_file, out_dir):
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-q', '--quiet',
+        action='store_true', help="Disable informational output")
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true', help="Enable debug output")
+    parser.add_argument(
+        'config_file',
+        type=str,
+        help='JSON config file for counts')
+    parser.add_argument(
+        'out_dir',
+        type=str,
+        help='Output directory')
+    return parser.parse_args()
+
+
+def execute_counts(out_dir, config_file):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     config = read_config(config_file)
     if not check_config(config):
         return
+
     # global config for the angular frontend
     cleanup_json(out_dir)
     write_angular_json(config, out_dir)
@@ -382,13 +406,21 @@ def main(config_file, out_dir):
         check_counting_method_valid(input_cls, data_format)
         count_options = {}
         count_options.update(s282_options(out_dir, count, written))
-        print("reading data for count: `%s'" % (count['name']))
+        logger.debug("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, **count_options)
-        print("determining outcome for count: `%s'" % (count['name']))
+        logger.debug("determining outcome for count: `%s'" % (count['name']))
         outf, _ = get_outcome(count, data, base_dir, out_dir)
         written.add(outf)
 
 
+def main():
+    args = parse_args()
+    if args.quiet:
+        logger.setLevel(logging.ERROR)
+    elif args.verbose:
+        logger.setLevel(logging.DEBUG)
+    execute_counts(args.out_dir, args.config_file)
+
+
 if __name__ == '__main__':
-    # really should use the CLI program
-    main(*sys.argv[1:])
+    main()

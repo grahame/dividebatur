@@ -2,6 +2,7 @@ import itertools
 import csv
 from collections import defaultdict
 
+from ..common import logger
 from .utils import int_or_none, named_tuple_iter, ticket_sort_key
 
 
@@ -60,7 +61,7 @@ class SenateATL:
             remainder_pattern = [1] * remainder + [0] * (size - remainder)
             remainder_pattern = [0] * (size - remainder) + [1] * (remainder)
             if remainder:
-                print("NOTE: GVT split ticket remainder, AEO input needed:", remainder_pattern)
+                logger.info("GVT split ticket remainder, AEO input needed: %s" % (remainder_pattern))
             # remainder_pattern = [0] * (size-remainder) + [1] * remainder
             for ticket, extra in zip(self.gvt[group], remainder_pattern):
                 yield ticket, int(n / size) + extra
