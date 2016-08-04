@@ -20,6 +20,7 @@ class SenateCountPost2015:
         self.tickets_for_count = PapersForCount()
 
         self.s282_candidates = kwargs.get('s282_candidates')
+        self.s282_method = kwargs.get('s282_method')
         self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
 
         def atl_flow(form):
@@ -63,24 +64,59 @@ class SenateCountPost2015:
                 return None
             return prefs
 
+        def resolve_non_s282(atl, btl):
+            "resolve the formal form from ATL and BTL forms. BTL takes precedence, if formal"
+            return btl_flow(btl) or atl_flow(atl)
+
+        def resolve_s282_restrict_form(atl, btl):
+            "resolve the formal form as for resolve_non_s282, but restrict to s282 candidates"
+            expanded = btl_flow(btl) or atl_flow(atl)
+            restricted = [candidate_id for candidate_id in expanded if candidate_id in self.s282_candidates]
+            if len(restricted) == 0:
+                return None
+            return restricted
+
+        def resolve_s282_restrict_form_with_savings(atl, btl):
+            "resolve the formal form as for resolve_non_s282, but restrict to s282 candidates"
+            restricted = None
+            # if we were formal BTL in a non-s282 count, restrict the form. if at least one
+            # preference, we're formal
+            btl_expanded = btl_flow(btl)
+            if btl_expanded:
+                restricted = [candidate_id for candidate_id in btl_expanded if candidate_id in self.s282_candidates]
+                if len(restricted) == 0:
+                    restricted = None
+            # if, before or after restriction, we are not formal BTL, try restricting the ATL form
+            if restricted is None:
+                atl_expanded = atl_flow(atl)
+                if atl_expanded:
+                    restricted = [candidate_id for candidate_id in atl_expanded if candidate_id in self.s282_candidates]
+                    if len(restricted) == 0:
+                        restricted = None
+            return restricted
+
         atl_n = len(self.candidates.groups)
         btl_n = len(self.candidates.candidates)
         assert(atl_n > 0 and btl_n > 0)
         informal_n = 0
         n_ballots = 0
+        resolution_fn = resolve_non_s282
+        if self.s282_candidates:
+            if self.s282_method == 'restrict_form':
+                resolution_fn = resolve_s282_restrict_form
+            elif self.s282_method == 'restrict_form_with_savings':
+                resolution_fn = resolve_s282_restrict_form_with_savings
+            else:
+                raise Exception("unknown s282 method: `%s'" % (self.s282_method))
+
+        # the (extremely) busy loop reading preferences and expanding them into
+        # forms to be entered into the count
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
             if self.max_tickets and n_ballots >= self.max_tickets:
                 return
             atl = raw_form[:atl_n]
             btl = raw_form[atl_n:]
-            # BTL takes precedence
-            form = btl_flow(btl) or atl_flow(atl)
-            # s282: take the original form, and limit to the candidates who are running now
-            # if there is no preference expressed, the ballot becomes informal
-            if self.s282_candidates:
-                form = [candidate_id for candidate_id in form if candidate_id in self.s282_candidates]
-                if len(form) == 0:
-                    form = None
+            form = resolution_fn(atl, btl)
             if form is not None:
                 self.tickets_for_count.add_ticket(tuple(form), count)
             else:
@@ -300,23 +336,41 @@ def check_counting_method_valid(method_cls, data_format):
         raise Exception("unsupported AEC data format '%s' requested" % (data_format))
 
 
-def s282_recount_get_candidates(out_dir, count, written):
-    shortname = count.get('s282_recount')
+def s282_options(out_dir, count, written):
+    options = {}
+    s282_config = count.get('s282')
+    if not s282_config:
+        return options
+    options = {
+        's282_method': s282_config['method']
+    }
+    shortname = s282_config['recount_from']
     if not shortname:
-        return
+        return options
     fname = json_count_path(out_dir, shortname)
     if fname not in written:
-        print("error: `%s' needed for s282 recount was not calculated yet." % (fname))
+        print("error: `%s' needed for s282 recount has not been calculated during this dividebatur run." % (fname))
         sys.exit(1)
     with open(fname) as fd:
         data = json.load(fd)
-        elected = [t['id'] for t in data['summary']['elected']]
-        return elected
+    options['s282_candidates'] = [t['id'] for t in data['summary']['elected']]
+    return options
+
+
+def check_config(config):
+    "basic checks that the configuration file is valid"
+    shortnames = [count['shortname'] for count in config['count']]
+    if len(shortnames) != len(set(shortnames)):
+        print("error: duplicate `shortname' in count configuration.")
+        return False
+    return True
 
 
 def main(config_file, out_dir):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     config = read_config(config_file)
+    if not check_config(config):
+        return
     # global config for the angular frontend
     cleanup_json(out_dir)
     write_angular_json(config, out_dir)
@@ -326,9 +380,10 @@ def main(config_file, out_dir):
         data_format = aec_data_config['format']
         input_cls = get_input_method(data_format)
         check_counting_method_valid(input_cls, data_format)
-        s282_candidates = s282_recount_get_candidates(out_dir, count, written)
+        count_options = {}
+        count_options.update(s282_options(out_dir, count, written))
         print("reading data for count: `%s'" % (count['name']))
-        data = get_data(input_cls, base_dir, count, s282_candidates=s282_candidates)
+        data = get_data(input_cls, base_dir, count, **count_options)
         print("determining outcome for count: `%s'" % (count['name']))
         outf, _ = get_outcome(count, data, base_dir, out_dir)
         written.add(outf)
