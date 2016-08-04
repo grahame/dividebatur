@@ -19,10 +19,12 @@
 
   <div class="collapse navbar-collapse">
     <ul class="nav navbar-nav">
-      <li ng-repeat="count in counts" ng-cloak><a href="#/scenario/{{ count.path }}">{{ count.name }}</a></li>
-    </ul>
-    <ul class="nav navbar-nav pull-right">
-      <li><a class="" href="http://github.com/grahame/dividebatur">Dividebatur on GitHub</a></li>
+       <li ng-repeat="state in bystate" class="dropdown">
+          <a onclick="nonav()" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{{ state[0].state }} <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li ng-repeat="count in state"><a href="#/scenario/{{count.path}}">{{count.name}}</a></li>
+          </ul>
+        </li>
     </ul>
   </div><!-- /.navbar-collapse -->
 </nav>

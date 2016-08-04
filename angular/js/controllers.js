@@ -3,6 +3,16 @@ var divideBatur = angular.module('divideBaturControllers', []);
 divideBatur.controller('CountCtrl', ['$scope', '$http',
   function ($scope, $http) {
     $http.get('data/count.json').success(function(data) {
+      var counts = data['counts'];
+      bystate = {};
+      for (var i = 0; i < counts.length; i++) {
+	  var count = counts[i];
+	  if (!bystate[count.state]) {
+	      bystate[count.state] = [];
+	  }
+	  bystate[count.state].push(count);
+      }
+      $scope.bystate = bystate;
       $scope.counts = data['counts'];
       $scope.title = data['title'];
       $scope.count = $scope.counts[0];
@@ -11,7 +21,6 @@ divideBatur.controller('CountCtrl', ['$scope', '$http',
 
 divideBatur.controller('CountDetailCtrl', ['$scope', '$routeParams', '$http', '$timeout', 'countData',
   function($scope, $routeParams, $http, $timeout, countData) {
-
     countData.getCount($routeParams.countId, function(data) {
       $scope.summary = data.summary;
       $scope.shortname = $routeParams.countId;
