@@ -121,3 +121,9 @@ class CandidateList:
                 seen_ids.add(candidate.CandidateID)
                 party_ab[candidate.PartyNm] = candidate.PartyAb
         return by_name_party, party_ab
+
+    def get_candidate_id(self, surname, given_name):
+        for candidate in self.candidates:
+            if candidate.surname == surname and candidate.given_name == given_name:
+                return candidate.candidate_id
+        raise KeyError((surname, given_name))

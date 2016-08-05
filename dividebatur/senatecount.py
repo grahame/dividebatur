@@ -26,6 +26,11 @@ class SenateCountPost2015:
         self.s282_method = kwargs.get('s282_method')
         self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
 
+        self.remove_candidates = None
+        remove = kwargs.get('remove_candidates')
+        if remove:
+            self.remove_candidates = [self.candidates.get_candidate_id(*t) for t in remove]
+
         def atl_flow(form):
             by_pref = {}
             for pref, group in zip(form, self.candidates.groups):
@@ -79,6 +84,22 @@ class SenateCountPost2015:
                 return None
             return restricted
 
+        def resolve_remove_candidates(atl, btl):
+            "resolve the formal form, removing the listed candidates from eligibiity"
+            restricted = None
+            btl_expanded = btl_flow(btl)
+            if btl_expanded:
+                restricted = [candidate_id for candidate_id in btl_expanded if candidate_id not in self.remove_candidates]
+                if len(restricted) < 6:
+                    restricted = None
+            if restricted is None:
+                atl_expanded = atl_flow(atl)
+                if atl_expanded:
+                    restricted = [candidate_id for candidate_id in atl_expanded if candidate_id not in self.remove_candidates]
+                    if len(restricted) == 0:
+                        restricted = None
+            return restricted
+
         def resolve_s282_restrict_form_with_savings(atl, btl):
             "resolve the formal form as for resolve_non_s282, but restrict to s282 candidates"
             restricted = None
@@ -111,6 +132,8 @@ class SenateCountPost2015:
                 resolution_fn = resolve_s282_restrict_form_with_savings
             else:
                 raise Exception("unknown s282 method: `%s'" % (self.s282_method))
+        if self.remove_candidates:
+            resolution_fn = resolve_remove_candidates
 
         # the (extremely) busy loop reading preferences and expanding them into
         # forms to be entered into the count
@@ -137,6 +160,8 @@ class SenateCountPost2015:
         candidate_ids = [c.candidate_id for c in self.candidates.candidates]
         if self.s282_candidates:
             candidate_ids = [t for t in candidate_ids if t in self.s282_candidates]
+        if self.remove_candidates:
+            candidate_ids = [t for t in candidate_ids if t not in self.remove_candidates]
         return candidate_ids
 
     def get_parties(self):
@@ -362,6 +387,15 @@ def s282_options(out_dir, count, written):
     return options
 
 
+def remove_candidates_options(count):
+    options = {}
+    remove_candidates = count.get('remove_candidates')
+    if remove_candidates is None:
+        return options
+    options['remove_candidates'] = remove_candidates
+    return options
+
+
 def check_config(config):
     "basic checks that the configuration file is valid"
     shortnames = [count['shortname'] for count in config['count']]
@@ -407,6 +441,7 @@ def execute_counts(out_dir, config_file):
         check_counting_method_valid(input_cls, data_format)
         count_options = {}
         count_options.update(s282_options(out_dir, count, written))
+        count_options.update(remove_candidates_options(count))
         logger.debug("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, **count_options)
         logger.debug("determining outcome for count: `%s'" % (count['name']))
