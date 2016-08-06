@@ -10,4 +10,4 @@ for i in aec_data/*/verified.json; do
     time python3 -m dividebatur.senatecount "$i" './angular/data/'
 done
 
-flake8 --ignore=E501 dividebatur
+flake8 --ignore=E501,E731 dividebatur
