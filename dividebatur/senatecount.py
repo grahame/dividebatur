@@ -27,6 +27,7 @@ class SenateCountPost2015:
         self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
 
         self.remove_candidates = None
+        self.remove_method = kwargs.get('remove_method')
         remove = kwargs.get('remove_candidates')
         if remove:
             self.remove_candidates = [self.candidates.get_candidate_id(*t) for t in remove]
@@ -84,13 +85,13 @@ class SenateCountPost2015:
                 return None
             return restricted
 
-        def resolve_remove_candidates(atl, btl):
+        def resolve_remove_candidates(atl, btl, min_candidates):
             "resolve the formal form, removing the listed candidates from eligibiity"
             restricted = None
             btl_expanded = btl_flow(btl)
             if btl_expanded:
                 restricted = [candidate_id for candidate_id in btl_expanded if candidate_id not in self.remove_candidates]
-                if len(restricted) < 6:
+                if min_candidates is not None and len(restricted) < min_candidates:
                     restricted = None
             if restricted is None:
                 atl_expanded = atl_flow(atl)
@@ -133,8 +134,10 @@ class SenateCountPost2015:
             else:
                 raise Exception("unknown s282 method: `%s'" % (self.s282_method))
         if self.remove_candidates:
-            resolution_fn = resolve_remove_candidates
-
+            if self.remove_method == 'relaxed':
+                resolution_fn = lambda atl, btl: resolve_remove_candidates(atl, btl, None)
+            elif self.remove_method == 'strict':
+                resolution_fn = lambda atl, btl: resolve_remove_candidates(atl, btl, 6)
         # the (extremely) busy loop reading preferences and expanding them into
         # forms to be entered into the count
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
@@ -389,10 +392,11 @@ def s282_options(out_dir, count, written):
 
 def remove_candidates_options(count):
     options = {}
-    remove_candidates = count.get('remove_candidates')
-    if remove_candidates is None:
+    remove = count.get('remove')
+    if remove is None:
         return options
-    options['remove_candidates'] = remove_candidates
+    options['remove_candidates'] = remove['candidates']
+    options['remove_method'] = remove['method']
     return options
 
 
