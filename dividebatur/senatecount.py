@@ -13,6 +13,7 @@ from pprint import pformat
 from .counter import PapersForCount, SenateCounter
 from .aecdata import CandidateList, SenateATL, SenateBTL, FormalPreferences
 from .common import logger
+from .results import JSONResults
 
 
 class SenateCountPost2015:
@@ -156,7 +157,7 @@ class SenateCountPost2015:
         if informal_n > 0:
             logger.info("%d ballots are informal and were excluded from the count" % (informal_n))
 
-    def get_tickets_for_count(self):
+    def get_papers_for_count(self):
         return self.tickets_for_count
 
     def get_candidate_ids(self):
@@ -205,7 +206,7 @@ class SenateCountPre2015:
         load_tickets(self.atl)
         load_tickets(self.btl)
 
-    def get_tickets_for_count(self):
+    def get_papers_for_count(self):
         return self.tickets_for_count
 
     def get_candidate_ids(self):
@@ -238,8 +239,11 @@ def verify_test_logs(verified_dir, test_log_dir):
         return os.path.join(d, 'round_%d.json' % r)
 
     def getlog(d, r):
-        with open(fname(d, r)) as fd:
-            return json.load(fd)
+        try:
+            with open(fname(d, r)) as fd:
+                return json.load(fd)
+        except FileNotFoundError:
+            return {}
     ok = True
     for idx in sorted(rounds):
         v = getlog(verified_dir, idx)
@@ -304,12 +308,15 @@ def get_data(input_cls, base_dir, count, **kwargs):
 def make_automation(answers):
     done = []
 
-    def __auto_fn(*args):
+    def __auto_fn(possibilities):
+        logger.debug("automation asked to choose between: %s" % (possibilities))
         if len(done) == len(answers):
-            return None
-        # it makes sense for the JSON to be indexed from 1, so the JSON
-        # data matches what's typed in on the console
-        resp = answers[len(done)] - 1
+            picked = 0
+            logger.warning("no automation data, requested to pick between %s, picked option %d" % (answers, picked + 1))
+            resp = 0
+        else:
+            answer = answers[len(done)]
+            resp = possibilities.index(answer)
         done.append(resp)
         return resp
     return __auto_fn
@@ -327,21 +334,25 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
         logger.debug("test logs are written to: %s" % (test_log_dir))
     outf = json_count_path(out_dir, count['shortname'])
     logger.info("counting `%s'. output written to `%s'" % (count['name'], outf))
-    counter = SenateCounter(
+    result_writer = JSONResults(
         outf,
-        count['vacancies'],
-        count_data.get_tickets_for_count(),
-        count_data.get_parties(),
+        test_log_dir,
         count_data.get_candidate_ids(),
+        count_data.get_parties(),
         count_data.get_candidate_order,
         count_data.get_candidate_title,
         count_data.get_candidate_party,
-        test_log_dir,
-        count.get('disable_bulk_exclusions'),
         name=count.get('name'),
         description=count.get('description'),
         house=count['house'],
         state=count['state'])
+    counter = SenateCounter(
+        result_writer,
+        count['vacancies'],
+        count_data.get_papers_for_count(),
+        count_data.get_candidate_ids(),
+        count_data.get_candidate_order,
+        count.get('disable_bulk_exclusions'))
     if automation_fn is None:
         automation_fn = make_automation(count.get('automation', []))
     counter.set_election_order_callback(automation_fn)
@@ -353,7 +364,7 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
     if not test_logs_okay:
         logger.error("** TESTS FAILED **")
         sys.exit(1)
-    return (outf, counter.output.summary)
+    return (outf, result_writer.summary())
 
 
 def get_input_method(format):
@@ -418,6 +429,9 @@ def parse_args():
         '-v', '--verbose',
         action='store_true', help="Enable debug output")
     parser.add_argument(
+        '--max-tickets',
+        type=int, help="Maximum tickets to read")
+    parser.add_argument(
         'config_file',
         type=str,
         help='JSON config file for counts')
@@ -428,7 +442,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def execute_counts(out_dir, config_file):
+def execute_counts(out_dir, config_file, max_tickets=None):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     config = read_config(config_file)
     if not check_config(config):
@@ -446,6 +460,8 @@ def execute_counts(out_dir, config_file):
         count_options = {}
         count_options.update(s282_options(out_dir, count, written))
         count_options.update(remove_candidates_options(count))
+        if max_tickets is not None:
+            count_options.update({'max_tickets': max_tickets})
         logger.debug("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, **count_options)
         logger.debug("determining outcome for count: `%s'" % (count['name']))
@@ -459,7 +475,7 @@ def main():
         logger.setLevel(logging.ERROR)
     elif args.verbose:
         logger.setLevel(logging.DEBUG)
-    execute_counts(args.out_dir, args.config_file)
+    execute_counts(args.out_dir, args.config_file, max_tickets=args.max_tickets)
 
 
 if __name__ == '__main__':
