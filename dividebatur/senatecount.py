@@ -17,6 +17,8 @@ from .results import JSONResults
 
 
 class SenateCountPost2015:
+    disable_bulk_exclusions = True
+
     def __init__(self, state_name, get_input_file, **kwargs):
         self.candidates = CandidateList(state_name,
                                         get_input_file('all-candidates'),
@@ -184,6 +186,8 @@ class SenateCountPost2015:
 
 
 class SenateCountPre2015:
+    disable_bulk_exclusions = False
+
     def __init__(self, state_name, get_input_file, **kwargs):
         if 's282_recount' in kwargs:
             raise Exception('s282 recount not implemented for pre2015 data')
@@ -346,13 +350,15 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
         description=count.get('description'),
         house=count['house'],
         state=count['state'])
+    disable_bulk_exclusions = count.get('disable_bulk_exclusions', count_data.disable_bulk_exclusions)
+    logger.debug("bulk exclusions: %s" % (disable_bulk_exclusions))
     counter = SenateCounter(
         result_writer,
         count['vacancies'],
         count_data.get_papers_for_count(),
         count_data.get_candidate_ids(),
         count_data.get_candidate_order,
-        count.get('disable_bulk_exclusions'))
+        disable_bulk_exclusions)
     if automation_fn is None:
         automation_fn = make_automation(count.get('automation', []))
     counter.set_election_order_callback(automation_fn)

@@ -4,4 +4,4 @@ if __name__ == '__main__':
     from dividebatur import senatecount
     import cProfile
     import sys
-    cProfile.run('senatecount.main(*sys.argv[2:])', filename=sys.argv[1])
+    cProfile.run('senatecount.execute_counts(*sys.argv[2:])', filename=sys.argv[1])

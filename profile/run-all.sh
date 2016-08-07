@@ -7,6 +7,6 @@ for json in ../aec_data/*/profile.json; do
     mkdir data
     outprof=$(basename $(dirname $json)).prof
     outdot=$(basename $(dirname $json)).dot
-    time python3 prof.py "$outprof" "$json" ./data/
+    time python3 prof.py "$outprof" ./data/ "$json"
     gprof2dot -f pstats "$outprof" -o "$outdot"
 done
