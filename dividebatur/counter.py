@@ -7,14 +7,46 @@ from .results import ElectionDistributionPerformed, \
     CandidateElected, CandidatesExcluded, \
     ExclusionReason
 
+# TicketState: represents a ticket as it progresses through
+# the count.
+#   - preferences: the preferences expressed by the voter,
+#     as a tuple of (candidate_id, ...) in preference order.
+#     there must be at one preference expressed.
+#   - up_to: the preference the ticket current expresses.
+#     increments as the paper passes to candidates, as
+#     the result of exclusions or elections.
+TicketState = namedtuple("TicketState", ("preferences", "up_to"))
 
-TicketState = namedtuple("TicketState", ("Preferences", "UpTo"))
+# PaperBundle: a bundle of TicketStates
+# TicketState: a ``TicketState`` instance
+#  - size: the number of tickets in the bundle
+PaperBundle = namedtuple("PaperBundle", ("ticket_state", "size"))
+
+
+# BundleTransaction: a collection of bundles which have been
+# transferred to a candidate, at a common transfer value.
+# We store this data so that when the bundles are distributed,
+# we can appropriately adjust the votes held by the candidate.
+# bundles:
+# - bundles: a list of PaperBundle instances
+# - transfer_value: the transfer value (a Fraction)
+# - votes: the vote value of this bundle transaction (an integer)
+BundleTransaction = namedtuple("BundleTransaction", ("bundles", "transfer_value", "votes"))
+
+
+def make_bundle_transaction(bundles, transfer_value):
+    votes_sum = sum(bundle.size for bundle in bundles)
+    return BundleTransaction(bundles, transfer_value, int(votes_sum * transfer_value))
 
 
 def get_preference(ticket_state):
-    if ticket_state.UpTo < len(ticket_state.Preferences):
-        return ticket_state.Preferences[ticket_state.UpTo]
+    if ticket_state.up_to < len(ticket_state.preferences):
+        return ticket_state.preferences[ticket_state.up_to]
     return None
+
+
+class CountException(Exception):
+    pass
 
 
 class PapersForCount:
@@ -26,88 +58,30 @@ class PapersForCount:
         self.papers = defaultdict(int)
 
     def add_ticket(self, ticket, n):
+        """
+        ticket: the form of the ticket, as a tuple in preference order. (candidate_id, ...)
+        n: the number of tickets of this form to add to the count
+        """
         self.papers[ticket] += n
 
     def __iter__(self):
         return iter(self.papers.items())
 
 
-class PaperBundle:
-    """
-    a bundle is a collection of papers, all with the same ticket, and with a transfer value they
-    were distributed under
-    """
-
-    def __init__(self, ticket_state, size, transfer_value):
-        self.ticket_state, self.size, self.transfer_value = ticket_state, size, transfer_value
-
-    def get_size(self):
-        return self.size
-
-    def get_ticket_state(self):
-        return self.ticket_state
-
-    def set_ticket_state(self, ticket_state):
-        self.ticket_state = ticket_state
-
-    def get_transfer_value(self):
-        return self.transfer_value
-
-
-class BundleTransaction:
-    """
-    a group of bundles which have been transferred to a candidate
-    at a common transfer value
-
-    this is stored because we may need to know the number of votes
-    contained within the bundle transfer if we later distribute it
-    """
-
-    def __init__(self, bundles):
-        assert(len(bundles) > 0)
-        self.bundles = bundles
-        self.transfer_value = None
-        # it's impossible for a transfer to occur with bundles at different
-        # transfer values; so we can do a little cross-check here
-        for bundle in self.bundles:
-            if self.transfer_value is None:
-                self.transfer_value = bundle.get_transfer_value()
-            else:
-                assert(self.transfer_value == bundle.get_transfer_value())
-        self.votes_fraction = 0
-        for bundle in self.bundles:
-            self.votes_fraction += bundle.get_size() * self.transfer_value
-        self.votes = int(self.votes_fraction)
-
-    def get_transfer_value(self):
-        return self.transfer_value
-
-    def get_votes(self):
-        return self.votes
-
-    def get_votes_fraction(self):
-        return self.votes_fraction
-
-    def get_papers(self):
-        return sum(bundle.get_size() for bundle in self.bundles)
-
-    def __iter__(self):
-        return iter(self.bundles)
-
-
 class CandidateBundleTransactions:
     """
-    describes which bundles a particular candidate is holding throughout the count
+    maintains state as to which bundles each candidate is holding throughout the count
+    a single instance is used throughout the whole count to provide this tracking
     """
 
     def __init__(self, candidate_ids, papers_for_count):
         """
         build initial bundles by first preference, and distribute
         """
-        self.candidate_bundle_transactions = {}
+        self._candidate_bundle_transactions = {}
         # create an entry for every candidate (even if they don't hold any papers)
         for candidate_id in candidate_ids:
-            self.candidate_bundle_transactions[candidate_id] = []
+            self._candidate_bundle_transactions[candidate_id] = []
         # go through each ticket and count in the papers and assign by first preference
         bundles_to_candidate = defaultdict(list)
         for ticket, count in papers_for_count:
@@ -115,32 +89,38 @@ class CandidateBundleTransactions:
             # first preferences, by flow
             pref = get_preference(state)
             if pref is None:
-                continue
-            bundles_to_candidate[pref].append(PaperBundle(state, count, fractions.Fraction(1, 1)))
+                raise CountException("vote with no first preference enrolled in the count.")
+            bundles_to_candidate[pref].append(PaperBundle(state, count))
+        # for efficiency, we incrementally track changes to _paper_count, so anywhere below
+        # where we vary the bundles, we must keep the total up to date
+        self._paper_count = {}
         for candidate_id in bundles_to_candidate:
-            self.candidate_bundle_transactions[candidate_id].append(BundleTransaction(bundles_to_candidate[candidate_id]))
+            self._candidate_bundle_transactions[candidate_id].append(
+                make_bundle_transaction(bundles_to_candidate[candidate_id], fractions.Fraction(1, 1)))
+            self._paper_count[candidate_id] = sum(bundle.size for bundle in bundles_to_candidate[candidate_id])
 
-    def paper_count(self, candidate_id):
+    def get_paper_count(self, candidate_id):
         """
         returns the number of papers held by the candidate
         """
-        papers = 0
-        for bundle_transaction in self.candidate_bundle_transactions[candidate_id]:
-            for bundle in bundle_transaction:
-                papers += bundle.get_size()
-        return papers
+        return self._paper_count[candidate_id]
 
     def candidate_paper_count(self):
-        return dict((candidate_id, self.paper_count(candidate_id)) for candidate_id in self.candidate_bundle_transactions)
+        """
+        return a dictionary mapping candidate_id to number of papers currently held
+        """
+        return self._paper_count
+
+    def transfer_from(self, candidate_id, bundle_transaction):
+        self._candidate_bundle_transactions[candidate_id].remove(bundle_transaction)
+        self._paper_count[candidate_id] -= sum(bundle.size for bundle in bundle_transaction.bundles)
+
+    def transfer_to(self, candidate_id, bundle_transaction):
+        self._candidate_bundle_transactions[candidate_id].append(bundle_transaction)
+        self._paper_count[candidate_id] += sum(bundle.size for bundle in bundle_transaction.bundles)
 
     def get(self, candidate_id):
-        return self.candidate_bundle_transactions[candidate_id].copy()
-
-    def transfer_to(self, candidate_id, bundle):
-        self.candidate_bundle_transactions[candidate_id].append(bundle)
-
-    def transfer_from(self, candidate_id, bundle):
-        self.candidate_bundle_transactions[candidate_id].remove(bundle)
+        return self._candidate_bundle_transactions[candidate_id].copy()
 
 
 class CandidateAggregates:
@@ -322,7 +302,7 @@ class SenateCounter:
         for candidate_id in self.candidate_ids:
             candidate_votes[candidate_id] = 0
         for candidate_id in self.candidate_ids:
-            candidate_votes[candidate_id] = self.candidate_bundle_transactions.paper_count(candidate_id)
+            candidate_votes[candidate_id] = self.candidate_bundle_transactions.get_paper_count(candidate_id)
         for candidate_id in candidate_votes:
             candidate_votes[candidate_id] = int(candidate_votes[candidate_id])
         return candidate_votes, 0, 0
@@ -333,9 +313,9 @@ class SenateCounter:
         for this bundle, and the next ticket_state after preferences are moved along
         if the vote exhausts, candidate_id will be None
         """
-        ticket_state = bundle.get_ticket_state()
+        ticket_state = bundle.ticket_state
         while True:
-            ticket_state = TicketState(ticket_state.Preferences, ticket_state.UpTo + 1)
+            ticket_state = TicketState(ticket_state.preferences, ticket_state.up_to + 1)
             candidate_id = get_preference(ticket_state)
             # if the preference passes through an elected or excluded candidate, we
             # skip over it
@@ -350,30 +330,29 @@ class SenateCounter:
         incoming_tickets = defaultdict(list)
         exhausted_papers = 0
 
-        # remaining aware of split tickets, determine how many papers go to
-        # each candidate; effectively we unpack each bundle into preference flows,
-        # split as needed, and then repack into new bundles
+        # determine how many papers go to each candidate; effectively we unpack each transaction bundle into
+        # preference flows, split as needed, and then repack into new bundles
         for from_candidate_id, bundle_transactions in bundle_transactions_to_distribute:
             for bundle_transaction in bundle_transactions:
                 # take the bundle away from the candidate
-                candidate_votes[from_candidate_id] -= bundle_transaction.get_votes()
+                candidate_votes[from_candidate_id] -= bundle_transaction.votes
                 self.candidate_bundle_transactions.transfer_from(from_candidate_id, bundle_transaction)
 
-                for bundle in bundle_transaction:
+                for bundle in bundle_transaction.bundles:
                     # determine the candidate(s) that this bundle of papers flows to
                     to_candidate, next_ticket_state = self.bundle_to_next_candidate(bundle)
                     if to_candidate is None:
-                        exhausted_papers += bundle.get_size()
+                        exhausted_papers += bundle.size
                         continue
-                    incoming_tickets[to_candidate].append((next_ticket_state, bundle.get_size()))
+                    incoming_tickets[to_candidate].append((next_ticket_state, bundle.size))
 
         for candidate_id in sorted(incoming_tickets, key=self.candidate_order_fn):
             bundles_moving = []
             for ticket, new_count in incoming_tickets[candidate_id]:
-                bundles_moving.append(PaperBundle(ticket, new_count, transfer_value))
-            bundle_transaction = BundleTransaction(bundles_moving)
+                bundles_moving.append(PaperBundle(ticket, new_count))
+            bundle_transaction = make_bundle_transaction(bundles_moving, transfer_value)
             self.candidate_bundle_transactions.transfer_to(candidate_id, bundle_transaction)
-            candidate_votes[candidate_id] += bundle_transaction.get_votes()
+            candidate_votes[candidate_id] += bundle_transaction.votes
 
         exhausted_votes = int(exhausted_papers * transfer_value)
         return exhausted_votes, exhausted_papers
@@ -396,7 +375,7 @@ class SenateCounter:
         if len(self.candidates_elected) != self.vacancies:
             excess_votes = max(candidate_aggregates.get_vote_count(candidate_id) - self.quota, 0)
             assert(excess_votes >= 0)
-            paper_count = self.candidate_bundle_transactions.paper_count(candidate_id)
+            paper_count = self.candidate_bundle_transactions.get_paper_count(candidate_id)
             if paper_count > 0:
                 transfer_value = fractions.Fraction(excess_votes, paper_count)
             assert(transfer_value >= 0)
@@ -429,7 +408,7 @@ class SenateCounter:
         for candidate_id in candidates:
             self.candidates_excluded[candidate_id] = True
             for bundle_transaction in self.candidate_bundle_transactions.get(candidate_id):
-                value = bundle_transaction.get_transfer_value()
+                value = bundle_transaction.transfer_value
                 transfers_applicable[value].add(candidate_id)
 
         transfer_values = list(reversed(sorted(transfers_applicable)))
@@ -469,7 +448,7 @@ class SenateCounter:
         total_exhausted_votes, total_exhausted_papers = 0, 0
         bundle_transactions_to_distribute = []
         for candidate_id in distributed_candidates:
-            bundle_transactions = [t for t in self.candidate_bundle_transactions.get(candidate_id) if t.get_transfer_value() == transfer_value]
+            bundle_transactions = [t for t in self.candidate_bundle_transactions.get(candidate_id) if t.transfer_value == transfer_value]
             bundle_transactions_to_distribute.append((candidate_id, bundle_transactions))
 
         exhausted_votes, exhausted_papers = self.distribute_bundle_transactions(
@@ -698,7 +677,7 @@ class SenateCounter:
             candidate_id, candidate_votes, votes_exhausted_in_round, papers_exhausted_in_round = \
                 self.process_election_distribution(last_candidate_aggregates)
         else:
-            raise Exception("No distribution or exclusion this round. Nothing to do - unreachable.")
+            raise CountException("No distribution or exclusion this round. Nothing to do - unreachable.")
 
         # determine new candidate aggregates, after application of actions
         candidate_aggregates = CandidateAggregates(

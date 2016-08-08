@@ -351,7 +351,7 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
         house=count['house'],
         state=count['state'])
     disable_bulk_exclusions = count.get('disable_bulk_exclusions', count_data.disable_bulk_exclusions)
-    logger.debug("bulk exclusions: %s" % (disable_bulk_exclusions))
+    logger.debug("disable bulk exclusions: %s" % (disable_bulk_exclusions))
     counter = SenateCounter(
         result_writer,
         count['vacancies'],
