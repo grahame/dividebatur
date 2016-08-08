@@ -79,9 +79,11 @@ class CandidateBundleTransactions:
         build initial bundles by first preference, and distribute
         """
         self._candidate_bundle_transactions = {}
+        self._paper_count = {}
         # create an entry for every candidate (even if they don't hold any papers)
         for candidate_id in candidate_ids:
             self._candidate_bundle_transactions[candidate_id] = []
+            self._paper_count[candidate_id] = 0
         # go through each ticket and count in the papers and assign by first preference
         bundles_to_candidate = defaultdict(list)
         for ticket, count in papers_for_count:
@@ -93,7 +95,6 @@ class CandidateBundleTransactions:
             bundles_to_candidate[pref].append(PaperBundle(state, count))
         # for efficiency, we incrementally track changes to _paper_count, so anywhere below
         # where we vary the bundles, we must keep the total up to date
-        self._paper_count = {}
         for candidate_id in bundles_to_candidate:
             self._candidate_bundle_transactions[candidate_id].append(
                 make_bundle_transaction(bundles_to_candidate[candidate_id], fractions.Fraction(1, 1)))
