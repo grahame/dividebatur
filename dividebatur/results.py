@@ -165,6 +165,14 @@ class BaseResults(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
+    def candidates_excluded(self, obj):
+        """
+        Called by the counter when candidate(s) are excluded.
+        ``obj`` is an instance of CandidatesExcluded
+        """
+        pass
+
+    @abc.abstractmethod
     def provision_used(self, obj):
         """
         Called by the counter when a provision of the act
