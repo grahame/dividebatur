@@ -435,8 +435,8 @@ def parse_args():
         '-v', '--verbose',
         action='store_true', help="Enable debug output")
     parser.add_argument(
-        '--max-tickets',
-        type=int, help="Maximum tickets to read")
+        '--max-ballots',
+        type=int, help="Maximum number of ballots to read")
     parser.add_argument(
         'config_file',
         type=str,
