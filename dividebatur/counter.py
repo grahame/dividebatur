@@ -239,23 +239,20 @@ class SenateCounter:
 
     def resolve_election_order(self, candidate_permutations):
         """
-        call the callback set with `set_election_order_callback`,
-        to break the tie.
+        call callback to break an election order tie.
         """
-        return self.election_order_callback(candidate_permutations)
+        return self.election_order_cb(candidate_permutations)
 
     def resolve_exclusion_tie(self, candidates):
         """
-        call the function (set with `set_candidate_tie_callback`)
-        to resolve a tie between candidates
+        call callback to resolve a tie between candidates
         """
         sorted_candidate_ids = list(sorted(candidates, key=self.candidate_order_fn))
         return sorted_candidate_ids[self.exclusion_tie_cb(candidates)]
 
     def resolve_election_tie(self, candidates):
         """
-        call the function (set with `set_candidate_tie_callback`)
-        to resolve a tie between candidates
+        call callback to resolve a tie between candidates
         """
         sorted_candidate_ids = list(sorted(candidates, key=self.candidate_order_fn))
         return sorted_candidate_ids[self.election_tie_cb(candidates)]
