@@ -181,7 +181,7 @@ class SenateCounter:
     by the Commonwealth Electoral Act (1918)
     """
 
-    def __init__(self, results, vacancies, papers_for_count, candidate_ids, candidate_order_fn, disable_bulk_exclusions):
+    def __init__(self, results, vacancies, papers_for_count, election_order_cb, exclusion_tie_cb, election_tie_cb, candidate_ids, candidate_order_fn, disable_bulk_exclusions):
         """
         results: an instance of a subclass of BaseResults
         vacancies: the number of vacancies to be filled in this senate elected
@@ -189,10 +189,28 @@ class SenateCounter:
         candidate_ids: an integer ID for each candidate (must be unique)
         candidate_order_fn: a function which can be called as a key function to [candidate_id, ...].sort(..)
         disable_bulk_exclusions: if True, no bulk exclusions will be performed
+        election_order_cb:
+            function will be called whenever input from the AEO would be required
+            to choose an election order from a set of possibilities. the function will
+            be passed a list of lists of candidate IDs, and should return the index
+            of the option to choose.
+        exclusion_tie_cb:
+          function `cb` will be called whenever input from the AEO would be required
+          to choose a candidate to exclude from a list of possible candidates. function
+          is passed a list of lists of candidate IDs, and should return the index
+          of the option to choose.
+        election_tie_cb:
+          function `cb` will be called whenever input from the AEO would be required
+          to choose a candidate to electfrom a list of possible candidates. function
+          is passed a list of lists of candidate IDs, and should return the index
+          of the option to choose.
         """
         self.results = results
         self.vacancies = vacancies
         self.papers_for_count = papers_for_count
+        self.election_order_cb = election_order_cb
+        self.exclusion_tie_cb = exclusion_tie_cb
+        self.election_tie_cb = election_tie_cb
         self.candidate_ids = candidate_ids
         self.candidate_order_fn = candidate_order_fn
         self.disable_bulk_exclusions = disable_bulk_exclusions
@@ -207,27 +225,6 @@ class SenateCounter:
         self.exclusion_distributions_pending = []
         self.election_distributions_pending = []
         self.has_run = False
-        self.set_election_order_callback(None)
-        self.set_candidate_tie_callback(None)
-
-    def set_election_order_callback(self, cb):
-        """
-        function `cb` will be called whenever input from the AEO would be required
-        to choose an election order from a set of possibilities. the function will
-        be passed a list of lists of candidate IDs, and should return the index
-        of the option to choose.
-        """
-        self.election_order_callback = cb
-
-    def set_candidate_tie_callback(self, cb):
-        """
-        function `cb` will be called whenever input from the AEO would be required
-        to choose a candidate to perform an action upon, from a list of possible
-        candidates. action could be election or exclusion. the function will be
-        be passed a list of lists of candidate IDs, and should return the index
-        of the option to choose.
-        """
-        self.candidate_tie_callback = cb
 
     def run(self):
         assert(self.has_run is False)
@@ -240,20 +237,28 @@ class SenateCounter:
         self.results.started(self.vacancies, self.total_papers, self.quota)
         self.count()
 
-    def determine_election_order(self, candidate_permutations):
+    def resolve_election_order(self, candidate_permutations):
         """
-        call the automation callback set with `set_election_order_callback`,
+        call the callback set with `set_election_order_callback`,
         to break the tie.
         """
         return self.election_order_callback(candidate_permutations)
 
-    def externally_determine_candidate_tie(self, candidates):
+    def resolve_exclusion_tie(self, candidates):
         """
-        call the automation function (set with `set_candidate_tie_callback`)
+        call the function (set with `set_candidate_tie_callback`)
         to resolve a tie between candidates
         """
         sorted_candidate_ids = list(sorted(candidates, key=self.candidate_order_fn))
-        return sorted_candidate_ids[self.candidate_tie_callback(candidates)]
+        return sorted_candidate_ids[self.exclusion_tie_cb(candidates)]
+
+    def resolve_election_tie(self, candidates):
+        """
+        call the function (set with `set_candidate_tie_callback`)
+        to resolve a tie between candidates
+        """
+        sorted_candidate_ids = list(sorted(candidates, key=self.candidate_order_fn))
+        return sorted_candidate_ids[self.election_tie_cb(candidates)]
 
     def determine_quota(self):
         self.total_papers = sum(count for _, count in self.papers_for_count)
@@ -291,7 +296,7 @@ class SenateCounter:
                         ActProvision("Multiple candidates elected with %d votes. Input required from Australian Electoral Officer." % (votes)))
                     permutations = list(itertools.permutations(candidate_ids))
                     permutations.sort()
-                    choice = self.determine_election_order(permutations)
+                    choice = self.resolve_election_order(permutations)
                     for candidate_id in permutations[choice]:
                         elected.append(candidate_id)
         return elected
@@ -513,7 +518,7 @@ class SenateCounter:
             else:
                 self.results.provision_used(
                     ActProvision("Multiple candidates for exclusion holding %d votes. Input required from Australian Electoral Officer." % (min_votes)))
-                excluded_candidate_id = self.externally_determine_candidate_tie(candidates_for_exclusion)
+                excluded_candidate_id = self.resolve_exclusion_tie(candidates_for_exclusion)
         else:
             excluded_candidate_id = candidates_for_exclusion[0]
             candidates_with_more_than_min = [candidate_aggregates.get_vote_count(t) for t in candidate_ids if candidate_aggregates.get_vote_count(t) > min_votes]
@@ -729,7 +734,7 @@ class SenateCounter:
                         self.results.provision_used(
                             ActProvision("Final two candidates lack a quota and are tied. Australian Electoral Officer "
                                          "must decide the final election."))
-                        candidate_id = self.externally_determine_candidate_tie(in_the_running)
+                        candidate_id = self.resolve_election_tie(in_the_running)
                         self.elect(candidate_aggregates, candidate_id)
                     else:
                         self.results.provision_used(

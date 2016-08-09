@@ -309,18 +309,22 @@ def get_data(input_cls, base_dir, count, **kwargs):
     return input_cls(count['state'], input_file, **kwargs)
 
 
-def make_automation(answers):
+class AutomationException(Exception):
+    pass
+
+
+def make_automation(name, automation):
     done = []
 
-    def __auto_fn(possibilities):
-        logger.debug("automation asked to choose between: %s" % (possibilities))
-        if len(done) == len(answers):
-            picked = 0
-            logger.warning("no automation data, requested to pick between %s, picked option %d" % (answers, picked + 1))
-            resp = 0
-        else:
-            answer = answers[len(done)]
-            resp = possibilities.index(answer)
+    def __auto_fn(question):
+        logger.debug("%s: asked to choose between: %s" % (name, question))
+        if len(done) == len(automation):
+            logger.error("%s: out of automation data, requested to pick between %s" % (name, question))
+            raise AutomationException()
+        auto_question, answer = automation[len(done)]
+        if auto_question != question:
+            logger.error("%s: automation data mismatch, expected question `%s', got question `%s'" % (name, auto_question, question))
+        resp = question.index(answer)
         done.append(resp)
         return resp
     return __auto_fn
@@ -330,7 +334,7 @@ def json_count_path(out_dir, shortname):
     return os.path.join(out_dir, shortname + '.json')
 
 
-def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
+def get_outcome(count, count_data, base_dir, out_dir):
     test_logs_okay = True
     test_log_dir = None
     if 'verified' in count:
@@ -356,13 +360,12 @@ def get_outcome(count, count_data, base_dir, out_dir, automation_fn=None):
         result_writer,
         count['vacancies'],
         count_data.get_papers_for_count(),
+        make_automation('election order', count['election_order_ties']),
+        make_automation('exclusion tie', count['exclusion_ties']),
+        make_automation('election tie', count['election_ties']),
         count_data.get_candidate_ids(),
         count_data.get_candidate_order,
         disable_bulk_exclusions)
-    if automation_fn is None:
-        automation_fn = make_automation(count.get('automation', []))
-    counter.set_election_order_callback(automation_fn)
-    counter.set_candidate_tie_callback(automation_fn)
     counter.run()
     if test_log_dir is not None:
         if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
@@ -438,6 +441,12 @@ def parse_args():
         '--max-ballots',
         type=int, help="Maximum number of ballots to read")
     parser.add_argument(
+        '--only',
+        type=str, help="Only run the count with this shortname")
+    parser.add_argument(
+        '--only-verified',
+        action='store_true', help="Only run verified counts")
+    parser.add_argument(
         'config_file',
         type=str,
         help='JSON config file for counts')
@@ -448,7 +457,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def execute_counts(out_dir, config_file, max_ballots=None):
+def execute_counts(out_dir, config_file, only, only_verified, max_ballots=None):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     config = read_config(config_file)
     if not check_config(config):
@@ -459,6 +468,10 @@ def execute_counts(out_dir, config_file, max_ballots=None):
     write_angular_json(config, out_dir)
     written = set()
     for count in config['count']:
+        if only is not None and count['shortname'] != only:
+            continue
+        if only_verified and 'verified' not in count:
+            continue
         aec_data_config = count['aec-data']
         data_format = aec_data_config['format']
         input_cls = get_input_method(data_format)
@@ -481,7 +494,7 @@ def main():
         logger.setLevel(logging.ERROR)
     elif args.verbose:
         logger.setLevel(logging.DEBUG)
-    execute_counts(args.out_dir, args.config_file, max_ballots=args.max_ballots)
+    execute_counts(args.out_dir, args.config_file, args.only, args.only_verified, max_ballots=args.max_ballots)
 
 
 if __name__ == '__main__':
