@@ -145,7 +145,7 @@ class SenateCountPost2015:
         # forms to be entered into the count
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
             if self.max_tickets and n_ballots >= self.max_tickets:
-                return
+                break
             atl = raw_form[:atl_n]
             btl = raw_form[atl_n:]
             form = resolution_fn(atl, btl)
