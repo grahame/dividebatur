@@ -27,7 +27,7 @@ class SenateCountPost2015:
 
         self.s282_candidates = kwargs.get('s282_candidates')
         self.s282_method = kwargs.get('s282_method')
-        self.max_tickets = kwargs['max_tickets'] if 'max_tickets' in kwargs else None
+        self.max_ballots = kwargs['max_ballots'] if 'max_ballots' in kwargs else None
 
         self.remove_candidates = None
         self.remove_method = kwargs.get('remove_method')
@@ -144,7 +144,7 @@ class SenateCountPost2015:
         # the (extremely) busy loop reading preferences and expanding them into
         # forms to be entered into the count
         for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
-            if self.max_tickets and n_ballots >= self.max_tickets:
+            if self.max_ballots and n_ballots >= self.max_ballots:
                 break
             atl = raw_form[:atl_n]
             btl = raw_form[atl_n:]
@@ -448,7 +448,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def execute_counts(out_dir, config_file, max_tickets=None):
+def execute_counts(out_dir, config_file, max_ballots=None):
     base_dir = os.path.dirname(os.path.abspath(config_file))
     config = read_config(config_file)
     if not check_config(config):
@@ -466,8 +466,8 @@ def execute_counts(out_dir, config_file, max_tickets=None):
         count_options = {}
         count_options.update(s282_options(out_dir, count, written))
         count_options.update(remove_candidates_options(count))
-        if max_tickets is not None:
-            count_options.update({'max_tickets': max_tickets})
+        if max_ballots is not None:
+            count_options.update({'max_ballots': max_ballots})
         logger.debug("reading data for count: `%s'" % (count['name']))
         data = get_data(input_cls, base_dir, count, **count_options)
         logger.debug("determining outcome for count: `%s'" % (count['name']))
@@ -481,7 +481,7 @@ def main():
         logger.setLevel(logging.ERROR)
     elif args.verbose:
         logger.setLevel(logging.DEBUG)
-    execute_counts(args.out_dir, args.config_file, max_tickets=args.max_tickets)
+    execute_counts(args.out_dir, args.config_file, max_ballots=args.max_ballots)
 
 
 if __name__ == '__main__':
