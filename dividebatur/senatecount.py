@@ -313,21 +313,49 @@ class AutomationException(Exception):
     pass
 
 
-def make_automation(name, automation):
-    done = []
+class Automation:
+    def __init__(self, name, automation_data, count_data):
+        """
+        name: name of this automation instance, for logging
+        automation_data: list of questions and responses [ [ question, response ], ... ]
+        """
+        self._name = name
+        self._data = automation_data
+        self._count_data = count_data
+        self._upto = 0
 
-    def __auto_fn(question):
-        logger.debug("%s: asked to choose between: %s" % (name, question))
-        if len(done) == len(automation):
-            logger.error("%s: out of automation data, requested to pick between %s" % (name, question))
-            raise AutomationException()
-        auto_question, answer = automation[len(done)]
-        if auto_question != question:
-            logger.error("%s: automation data mismatch, expected question `%s', got question `%s'" % (name, auto_question, question))
-        resp = question.index(answer)
-        done.append(resp)
-        return resp
-    return __auto_fn
+    def _qstr(self, question):
+        "we need to cope with a list, or a list of lists"
+        parts = []
+        for entry in question:
+            if type(entry) is list:
+                parts.append(self._qstr(entry))
+            else:
+                parts.append('"%s"<%d>' % (self._count_data.get_candidate_title(entry), entry))
+        return ', '.join(parts)
+
+    def create_callback(self):
+        """
+        create a callback, suitable to be passed to SenateCounter
+        """
+        def __callback(question_posed):
+            logger.debug("%s: asked to choose between: %s" % (self._name, self._qstr(question_posed)))
+            if self._upto == self._data:
+                logger.error("%s: out of automation data, requested to pick between %s" % (self._name, self._qstr(question_posed)))
+                raise AutomationException("out of automation data")
+            question_archived, answer = self._data[self._upto]
+            if question_archived != question_posed:
+                logger.error("%s: automation data mismatch, expected question `%s', got question `%s'" % (self._name, self._qstr(question_archived), self._qstr(question_posed)))
+            resp = question_posed.index(answer)
+            self._upto += 1
+            return resp
+        return __callback
+
+    def check_complete(self):
+        if self._upto != len(self._data):
+            logger.error("%s: not all automation data was consumed (upto %d/%d)" % (self._name, self._upto, len(self._data)))
+            return False
+        return True
 
 
 def json_count_path(out_dir, shortname):
@@ -356,17 +384,23 @@ def get_outcome(count, count_data, base_dir, out_dir):
         state=count['state'])
     disable_bulk_exclusions = count.get('disable_bulk_exclusions', count_data.disable_bulk_exclusions)
     logger.debug("disable bulk exclusions: %s" % (disable_bulk_exclusions))
+    election_order_auto = Automation('election order', count['election_order_ties'], count_data)
+    exclusion_tie_auto = Automation('exclusion tie', count['exclusion_ties'], count_data)
+    election_tie_auto = Automation('election tie', count['election_ties'], count_data)
     counter = SenateCounter(
         result_writer,
         count['vacancies'],
         count_data.get_papers_for_count(),
-        make_automation('election order', count['election_order_ties']),
-        make_automation('exclusion tie', count['exclusion_ties']),
-        make_automation('election tie', count['election_ties']),
+        election_order_auto.create_callback(),
+        exclusion_tie_auto.create_callback(),
+        election_tie_auto.create_callback(),
         count_data.get_candidate_ids(),
         count_data.get_candidate_order,
         disable_bulk_exclusions)
     counter.run()
+    if any(not t.check_complete() for t in (election_order_auto, exclusion_tie_auto, election_tie_auto)):
+        logger.error("** Not all automation data consumed. Failed. **")
+        sys.exit(1)
     if test_log_dir is not None:
         if not verify_test_logs(os.path.join(base_dir, count['verified']), test_log_dir):
             test_logs_okay = False
