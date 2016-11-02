@@ -34,6 +34,10 @@ class SenateCountPost2015:
         remove = kwargs.get('remove_candidates')
         if remove:
             self.remove_candidates = [self.candidates.get_candidate_id(*t) for t in remove]
+        if self.remove_candidates:
+            self.remove_atl_only = kwargs.get('remove_atl_only')
+            if self.remove_atl_only is None:
+                self.remove_atl_only = [False for t in self.remove_candidates]
 
         def atl_flow(form):
             by_pref = {}
@@ -93,7 +97,8 @@ class SenateCountPost2015:
             restricted = None
             btl_expanded = btl_flow(btl)
             if btl_expanded:
-                restricted = [candidate_id for candidate_id in btl_expanded if candidate_id not in self.remove_candidates]
+                btl_remove = [t for (t, atl_only) in zip(self.remove_candidates, self.remove_atl_only) if not atl_only]
+                restricted = [candidate_id for candidate_id in btl_expanded if candidate_id not in btl_remove]
                 if min_candidates is not None and len(restricted) < min_candidates:
                     restricted = None
             if restricted is None:
@@ -167,7 +172,8 @@ class SenateCountPost2015:
         if self.s282_candidates:
             candidate_ids = [t for t in candidate_ids if t in self.s282_candidates]
         if self.remove_candidates:
-            candidate_ids = [t for t in candidate_ids if t not in self.remove_candidates]
+            strip_candidates = [t for (t, atl_only) in zip(self.remove_candidates, self.remove_atl_only) if not atl_only]
+            candidate_ids = [t for t in candidate_ids if t not in strip_candidates]
         return candidate_ids
 
     def get_parties(self):
@@ -451,6 +457,7 @@ def remove_candidates_options(count):
         return options
     options['remove_candidates'] = remove['candidates']
     options['remove_method'] = remove['method']
+    options['remove_atl_only'] = remove.get('atl_only')
     return options
 
 
