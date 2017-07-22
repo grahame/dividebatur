@@ -17,3 +17,4 @@ profile/data/
 *.html~
 *.js~
 ~*.DOCX
+.vscode/

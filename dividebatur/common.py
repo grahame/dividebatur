@@ -1,7 +1,7 @@
 import logging
 
 
-def make_logger(name):
+def make_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler()
@@ -9,6 +9,7 @@ def make_logger(name):
     handler.setFormatter(fmt)
     logger.addHandler(handler)
     return logger
+
 
 # this is a common, global logger instance for dividebatur
 logger = make_logger("dividebatur")
