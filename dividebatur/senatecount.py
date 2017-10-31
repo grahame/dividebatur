@@ -346,7 +346,7 @@ class Automation:
         """
         def __callback(question_posed):
             logger.debug("%s: asked to choose between: %s" % (self._name, self._qstr(question_posed)))
-            if self._upto == self._data:
+            if self._upto == len(self._data):
                 logger.error("%s: out of automation data, requested to pick between %s" % (self._name, self._qstr(question_posed)))
                 raise AutomationException("out of automation data")
             question_archived, answer = self._data[self._upto]
