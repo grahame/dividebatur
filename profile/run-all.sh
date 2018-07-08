@@ -2,7 +2,7 @@
 
 rm *.prof
 rm *.dot
-for json in ../aec_data/*/profile.json; do
+for json in ../dividebatur-aec/*/profile.json; do
     rm -rf data
     mkdir data
     outprof=$(basename $(dirname $json)).prof

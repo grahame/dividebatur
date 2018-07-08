@@ -5,7 +5,7 @@ import dividebatur
 from dividebatur.aecdata import CandidateList
 
 datadir = os.path.join(os.path.dirname(dividebatur.__file__),
-                       os.pardir, "aec_data")
+                       os.pardir, "dividebatur-aec")
 
 
 class CandidateListTests(unittest.TestCase):

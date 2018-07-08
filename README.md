@@ -29,11 +29,6 @@ Copyright 2013-16, The Dividebatur Authors
 
 See the file AUTHORS for a list of contributors to this software project.
 
-The data located under `aec_data/` is licensed under a 
-Creative Commons Attribution 3.0 Australia Licence (CC BY 3.0), and is 
-© Commonwealth of Australia. Full License terms are on the
-[AEC website](http://aec.gov.au/footer/Copyright.htm)
-
 ## Dependencies
 
 For Ubuntu:
@@ -70,10 +65,10 @@ but could certainly be improved.
 ## Usage
 
 `./run_aec_fed2013_wa.sh` will run a count of the 2013/14 WA Senate count .
-The data is in the repository under `aec_data/fed2013_wa`.
+The data is in the repository under `dividebatur-aec/fed2013_wa`.
 
 `./run_aec_fed2016.sh` will run a count for all states with data available,
-for the 2016 federal election. The data is in the repository under `aec_data/fed2016`.
+for the 2016 federal election. The data is in the repository under `dividebatur-aec/fed2016`.
 
 ## Structure
 senatecount.py builds up the initial data needed to begin the count, and then hands it to counter.py
