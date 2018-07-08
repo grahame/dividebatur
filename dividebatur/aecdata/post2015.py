@@ -1,4 +1,5 @@
 import csv
+import gzip
 from collections import Counter
 
 
@@ -25,7 +26,7 @@ class FormalPreferences:
         pref_hash['*'] = 1
         pref_hash['/'] = 1
         pref_hash[''] = None
-        with open(self._csv_file, 'rt') as fd:
+        with gzip.open(self._csv_file, 'rt') as fd:
             reader = csv.reader(fd)
             header = next(reader)
             assert(header == ['ElectorateNm', 'VoteCollectionPointNm', 'VoteCollectionPointId', 'BatchNo', 'PaperNo', 'Preferences'])

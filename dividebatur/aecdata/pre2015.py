@@ -1,4 +1,5 @@
 import itertools
+import gzip
 import csv
 from collections import defaultdict
 
@@ -79,7 +80,7 @@ class SenateBTL:
         self.load_btl(btl_csv)
 
     def load_btl(self, btl_csv):
-        with open(btl_csv, 'rt') as fd:
+        with gzip.open(btl_csv, 'rt') as fd:
             reader = csv.reader(fd)
             next(reader)  # skip the version
             header = next(reader)
