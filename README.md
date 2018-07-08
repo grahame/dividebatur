@@ -38,16 +38,6 @@ Creative Commons Attribution 3.0 Australia Licence (CC BY 3.0), and is
 
 For Ubuntu:
 
-Git Large File Support:
-
-```bash
-$ mkdir -p $HOME/bin
-$ wget https://github.com/github/git-lfs/releases/download/v1.3.0/git-lfs-linux-amd64-1.3.0.tar.gz
-$ tar xvfz git-lfs-linux-amd64-1.3.0.tar.gz
-$ mv git-lfs-1.3.0/git-lfs $HOME/bin/git-lfs
-$ export PATH=$PATH:$HOME/bin/
-```
-
 ### Optional to run tests
 ```bash
 $ sudo apt-get install python3-pip
@@ -78,8 +68,6 @@ election results don't vary. These do pick up quite a few regressions,
 but could certainly be improved.
 
 ## Usage
-
-`git lfs pull` will download the large data files.
 
 `./run_aec_fed2013_wa.sh` will run a count of the 2013/14 WA Senate count .
 The data is in the repository under `aec_data/fed2013_wa`.

@@ -1,6 +1,7 @@
 __pycache__
 log/
 dist/
+aec_data/
 angular/data
 profile/*.dot
 profile/*.prof
