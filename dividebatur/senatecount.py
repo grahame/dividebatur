@@ -148,7 +148,7 @@ class SenateCountPost2015:
                 resolution_fn = lambda atl, btl: resolve_remove_candidates(atl, btl, 6)
         # the (extremely) busy loop reading preferences and expanding them into
         # forms to be entered into the count
-        for raw_form, count in FormalPreferences(get_input_file('formal-preferences')):
+        for raw_form, count in FormalPreferences(get_input_file('formal-preferences'), atl_n, btl_n):
             if self.max_ballots and n_ballots >= self.max_ballots:
                 break
             atl = raw_form[:atl_n]
