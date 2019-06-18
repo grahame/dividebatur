@@ -3,7 +3,7 @@ dividebatur: process single-transferable-vote elections as used for the Australi
 For a high level overview of what this does, check this 
 blog post:
 
-http://blog.angrygoats.net/2014/01/25/counting-the-west-australian-senate-election/
+https://oreamnos.com.au/posts/counting-the-wa-election/
 
 For the legislation defining the system we are implementing, see the `legislation` directory of the repository.
 The counting algorithm is defined in Section 273. Other sections define the rules around formality of ballots.

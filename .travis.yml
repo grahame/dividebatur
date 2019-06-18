@@ -9,4 +9,4 @@ before_script:
 script: bash travis_tests.sh
 notifications:
   email:
-    - grahame@angrygoats.net
+          - grahame@oreamnos.com.au

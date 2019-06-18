@@ -5,7 +5,7 @@ install_requires = []
 
 setup(
     author="Grahame Bowland",
-    author_email="grahame@angrygoats.net",
+    author_email="grahame@oreamnos.com.au",
     description="process single-transferable-vote elections as used for the Australian Senate under the Commonwealth Electoral Act (1918)",
     license="Apache2",
     keywords="stv senate voting",
